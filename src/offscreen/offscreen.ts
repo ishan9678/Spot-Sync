@@ -55,6 +55,47 @@ function createPeer(id?: string) {
     throw error;
   }
 }
+
+// --- Sync logic state ---
+type SongInfo = {
+  title: string
+  artist: string
+  position: string
+  duration: string
+  isPlaying?: boolean
+  positionMs?: number
+  durationMs?: number
+}
+
+let role: 'host' | 'client' | null = null;
+let lastLocalSong: SongInfo | null = null;
+let lastHostBroadcastAt = 0;
+let lastClientAutoSyncAt = 0;
+
+const nowMs = () => Date.now();
+
+function projectHostPosition(payload: Required<Pick<SongInfo, 'positionMs' | 'durationMs' | 'isPlaying'>> & { ts: number }) {
+  const { positionMs, durationMs, isPlaying, ts } = payload;
+  if (!isPlaying) return Math.min(positionMs, durationMs);
+  const elapsed = Math.max(0, nowMs() - ts);
+  const projected = Math.min(positionMs + elapsed, durationMs);
+  return projected;
+}
+
+function broadcastToPeers(data: any) {
+  Object.values(connections).forEach((conn: any) => {
+    try { conn.open && conn.send(data); } catch {}
+  });
+}
+
+function titlesMatch(a?: string, b?: string) {
+  return (a || '').trim().toLowerCase() === (b || '').trim().toLowerCase();
+}
+
+function artistsMatch(a?: string, b?: string) {
+  return (a || '').trim().toLowerCase() === (b || '').trim().toLowerCase();
+}
+
 // Listen for messages from background script
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   console.log('[Offscreen] Received message:', msg);
@@ -89,6 +130,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
         p.on('open', (id) => {
           clearTimeout(timeout);
           console.log('[Offscreen] Host started session with ID:', id);
+          role = 'host';
           // Attach common listeners for incoming connections
           p.on('connection', (conn) => {
             console.log('[Offscreen] Client connected:', conn.peer);
@@ -169,6 +211,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       
       peer.on("open", (id) => {
         console.log("[Offscreen] Client peer open with ID:", id);
+        role = 'client';
         const conn = peer!.connect(code);
         
         conn.on("open", () => {
@@ -180,7 +223,51 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
         });
 
         conn.on("data", (data) => {
-          console.log("[Offscreen] Received from host:", data);
+          const d: any = data as any;
+          console.log("[Offscreen] Received from host:", d);
+          // Handle sync payloads from host
+          if (d?.type === 'SYNC_STATE' && d?.payload) {
+            const p = d.payload as Required<SongInfo> & { ts: number };
+            const hostProjMs = projectHostPosition({
+              positionMs: p.positionMs ?? 0,
+              durationMs: p.durationMs ?? 0,
+              isPlaying: Boolean(p.isPlaying),
+              ts: p.ts,
+            });
+
+            // If we don't have local info yet, notify mismatch and wait for next tick
+            if (!lastLocalSong) {
+              sendToRuntime({ type: 'SYNC_MISMATCH', hostSong: { title: p.title, artist: p.artist } });
+              return;
+            }
+
+            const sameTrack = titlesMatch(lastLocalSong.title, p.title) && artistsMatch(lastLocalSong.artist, p.artist);
+            if (!sameTrack) {
+              // Notify user about different track
+              sendToRuntime({ type: 'SYNC_MISMATCH', hostSong: { title: p.title, artist: p.artist } });
+              return;
+            }
+
+            // Attempt gentle auto-resync on clients for drift > 2s or play/pause mismatch
+            const localPos = lastLocalSong.positionMs ?? 0;
+            const localDur = lastLocalSong.durationMs ?? 0;
+            const localPlay = Boolean(lastLocalSong.isPlaying);
+            const drift = Math.abs((hostProjMs || 0) - (localPos || 0));
+            const playMismatch = localPlay !== Boolean(p.isPlaying);
+
+            const throttle = 1200; // ms between auto-sync operations
+            const now = nowMs();
+            if ((drift > 2000 || playMismatch) && now - lastClientAutoSyncAt > throttle) {
+              lastClientAutoSyncAt = now;
+              // Seek to host's position and align play/pause
+              sendToRuntime({ type: 'SEEK', ms: Math.min(hostProjMs, localDur), meta: { autoSync: true } });
+              if (p.isPlaying && !localPlay) {
+                sendToRuntime({ type: 'PLAY', meta: { autoSync: true } });
+              } else if (!p.isPlaying && localPlay) {
+                sendToRuntime({ type: 'PAUSE', meta: { autoSync: true } });
+              }
+            }
+          }
         });
 
         conn.on("close", () => {
@@ -232,6 +319,8 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       peer.destroy();
       peer = null;
     }
+  role = null;
+  lastLocalSong = null;
     
     updatePeerCount();
     sendResponse({ success: true });
@@ -247,6 +336,26 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       peerCount: connectionCount,
       peerId: peer?.id || null
     });
+  }
+
+  // Capture song telemetry from content script and propagate if hosting
+  if (msg.type === 'SONG_INFO' && msg.payload) {
+    lastLocalSong = msg.payload as SongInfo;
+    if (role === 'host' && lastLocalSong?.title) {
+      const now = nowMs();
+      // throttle to ~1 Hz
+      if (now - lastHostBroadcastAt > 700) {
+        lastHostBroadcastAt = now;
+        const payload = {
+          ...lastLocalSong,
+          isPlaying: Boolean(lastLocalSong.isPlaying),
+          positionMs: lastLocalSong.positionMs ?? 0,
+          durationMs: lastLocalSong.durationMs ?? 0,
+          ts: now,
+        };
+        broadcastToPeers({ type: 'SYNC_STATE', payload });
+      }
+    }
   }
 
   return false;

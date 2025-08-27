@@ -195,9 +195,27 @@ export default function App() {
 
   // Listen for connection updates from offscreen document via background script
   useEffect(() => {
+    const lastMismatchRef = { key: '', ts: 0 }
     const messageListener = (message: any) => {
       if (message?.type === 'SONG_INFO' && message.payload) {
         setSongInfo(message.payload)
+        return
+      }
+      if (message?.type === 'SYNC_MISMATCH' && message.hostSong) {
+        const key = `${message.hostSong.title}—${message.hostSong.artist}`
+        const now = Date.now()
+        if (key !== lastMismatchRef.key || now - lastMismatchRef.ts > 5000) {
+          lastMismatchRef.key = key
+          lastMismatchRef.ts = now
+          toast(() => (
+            <div>
+              Host is playing
+              <div style={{ fontWeight: 600 }}>{message.hostSong.title}</div>
+              <div style={{ fontSize: 12, opacity: 0.8 }}>{message.hostSong.artist}</div>
+              <div style={{ marginTop: 6, fontSize: 12 }}>Switch to this track to sync.</div>
+            </div>
+          ), { id: 'sync-mismatch', duration: 4000 })
+        }
         return
       }
       if (message.type === 'PEER_COUNT_UPDATE') {
