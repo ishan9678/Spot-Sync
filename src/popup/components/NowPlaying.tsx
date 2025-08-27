@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { getActiveTab, isSpotifyUrl } from '../utils/tabs'
 import { Play as PlayIcon, Pause as PauseIcon } from 'lucide-react'
+import { timeToMs } from '../utils/time'
 
 type SongInfo = {
   title: string
@@ -17,33 +18,6 @@ interface Props {
   song: SongInfo | null
 }
 
-function timeToMs(t: string): number {
-  if (!t) return 0
-  const parts = t.split(':').map((p) => Number.parseInt(p, 10))
-  if (parts.some((n) => Number.isNaN(n))) return 0
-  // supports mm:ss or hh:mm:ss
-  let ms = 0
-  if (parts.length === 3) {
-    const [hh, mm, ss] = parts
-    ms = ((hh * 60 + mm) * 60 + ss) * 1000
-  } else if (parts.length === 2) {
-    const [mm, ss] = parts
-    ms = (mm * 60 + ss) * 1000
-  } else if (parts.length === 1) {
-    ms = parts[0] * 1000
-  }
-  return ms
-}
-
-function msToTime(ms: number): string {
-  const totalSeconds = Math.max(0, Math.floor(ms / 1000))
-  const hours = Math.floor(totalSeconds / 3600)
-  const minutes = Math.floor((totalSeconds % 3600) / 60)
-  const seconds = totalSeconds % 60
-  const mm = String(minutes).padStart(2, '0')
-  const ss = String(seconds).padStart(2, '0')
-  return hours > 0 ? `${hours}:${mm}:${ss}` : `${minutes}:${ss}`
-}
 
 export default function NowPlaying({ song }: Props) {
   const durationMs = useMemo(
@@ -122,7 +96,7 @@ export default function NowPlaying({ song }: Props) {
       aria-label="Now Playing"
     >
       <div style={{ fontSize: 12, color: '#9aa0a6', letterSpacing: 0.4 }}>Now Playing</div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={song.title}>
             {song.title}
@@ -131,15 +105,12 @@ export default function NowPlaying({ song }: Props) {
             {song.artist}
           </div>
         </div>
-        <div style={{ fontVariantNumeric: 'tabular-nums', color: '#b0b4b9', fontSize: 12 }}>
-          {song.position} / {song.duration}
-        </div>
       </div>
 
       {/* progress */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <span style={{ width: 40, textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: '#9aa0a6', fontSize: 12 }}>
-          {msToTime(sliderMs)}
+          {song.position}
         </span>
         <input
           type="range"
@@ -168,27 +139,7 @@ export default function NowPlaying({ song }: Props) {
       </div>
 
       {/* controls */}
-      <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', alignItems: 'center' }}>
-        <button
-          onClick={() => void send('TOGGLE')}
-          title={isPlaying ? 'Pause' : 'Play'}
-          aria-label={isPlaying ? 'Pause' : 'Play'}
-          style={{
-            padding: '6px 10px',
-            background: isPlaying ? '#2a2a2a' : '#1db954',
-            color: isPlaying ? '#fff' : '#000',
-            border: isPlaying ? '1px solid #3a3a3a' : 'none',
-            borderRadius: 6,
-            fontWeight: 600,
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 6,
-          }}
-        >
-          {isPlaying ? <PauseIcon size={16} /> : <PlayIcon size={16} />}
-          <span style={{ display: 'inline-block' }}>{isPlaying ? 'Pause' : 'Play'}</span>
-        </button>
+      <div style={{ display: 'flex', gap: 10, justifyContent: 'center', alignItems: 'center', marginTop: 4 }}>
         <button
           onClick={() => {
             const v = Math.max(0, Math.min((sliderMs || 0) - 10000, durationMs))
@@ -208,6 +159,26 @@ export default function NowPlaying({ song }: Props) {
           disabled={disabled}
         >
           -10s
+        </button>
+        <button
+          onClick={() => void send('TOGGLE')}
+          title={isPlaying ? 'Pause' : 'Play'}
+          aria-label={isPlaying ? 'Pause' : 'Play'}
+          style={{
+            padding: '8px 12px',
+            background: isPlaying ? '#2a2a2a' : '#1db954',
+            color: isPlaying ? '#fff' : '#000',
+            border: isPlaying ? '1px solid #3a3a3a' : 'none',
+            borderRadius: 999,
+            fontWeight: 700,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            minWidth: 44,
+          }}
+        >
+          {isPlaying ? <PauseIcon size={18} /> : <PlayIcon size={18} />}
         </button>
         <button
           onClick={() => {
