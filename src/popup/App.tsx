@@ -17,6 +17,7 @@ import {
   leaveSessionRequest,
   isValidSessionCode
 } from './utils/session'
+import { getActiveTabUrl, isSpotifyUrl } from './utils/tabs'
 
 // Types moved to utils/session
 
@@ -26,12 +27,13 @@ export default function App() {
   const [sessionCode, setSessionCode] = useState<string>('')
   // joinCode moved into IdleControls component state
   const [connectedPeers, setConnectedPeers] = useState<number>(0)
+  const [onSpotify, setOnSpotify] = useState<boolean>(false)
 
   // Load saved state when popup opens
   useEffect(() => {
     const loadSavedState = async () => {
       try {
-  const result = await getSavedState()
+        const result = await getSavedState()
         
         if (result.sessionState) {
           setSessionState(result.sessionState)
@@ -79,6 +81,18 @@ export default function App() {
     }
 
     loadSavedState()
+  }, [])
+
+  // Check active tab once to indicate if user is on Spotify
+  useEffect(() => {
+    (async () => {
+      try {
+        const url = await getActiveTabUrl()
+        setOnSpotify(isSpotifyUrl(url))
+      } catch {
+        setOnSpotify(false)
+      }
+    })()
   }, [])
 
   // Save state whenever it changes
@@ -216,7 +230,12 @@ export default function App() {
           <Music className="app-logo" size={24} />
           <h1 className="app-title">Spot Sync</h1>
         </div>
-  <StatusIndicator connectionStatus={connectionStatus} />
+  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+    <div className="spotify-indicator" title={onSpotify ? 'On Spotify' : 'Not on Spotify'} aria-label={onSpotify ? 'On Spotify' : 'Not on Spotify'}>
+      <span className={`dot ${onSpotify ? 'on' : 'off'}`} />
+    </div>
+    <StatusIndicator connectionStatus={connectionStatus} />
+  </div>
       </div>
 
       <div className="main-content">

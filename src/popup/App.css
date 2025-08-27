@@ -72,6 +72,17 @@
   color: #ffa500;
 }
 
+/* Spotify indicator dot */
+.spotify-indicator .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  border: 1px solid #333;
+}
+.spotify-indicator .dot.on { background: #1db954; }
+.spotify-indicator .dot.off { background: #555; }
+
 /* Main Content */
 .main-content {
   flex: 1;
