@@ -5,6 +5,7 @@ import StatusIndicator from './components/StatusIndicator'
 import IdleControls from './components/IdleControls'
 import HostView from './components/HostView'
 import JoinedView from './components/JoinedView'
+import NowPlaying from './components/NowPlaying'
 import './App.css'
 import {
   type SessionState,
@@ -28,6 +29,7 @@ export default function App() {
   // joinCode moved into IdleControls component state
   const [connectedPeers, setConnectedPeers] = useState<number>(0)
   const [onSpotify, setOnSpotify] = useState<boolean>(false)
+  const [songInfo, setSongInfo] = useState<{ title: string; artist: string; position: string; duration: string } | null>(null)
 
   // Load saved state when popup opens
   useEffect(() => {
@@ -194,6 +196,10 @@ export default function App() {
   // Listen for connection updates from offscreen document via background script
   useEffect(() => {
     const messageListener = (message: any) => {
+      if (message?.type === 'SONG_INFO' && message.payload) {
+        setSongInfo(message.payload)
+        return
+      }
       if (message.type === 'PEER_COUNT_UPDATE') {
         setConnectedPeers(message.count)
       } else if (message.type === 'CONNECTION_LOST') {
@@ -239,6 +245,7 @@ export default function App() {
       </div>
 
       <div className="main-content">
+  <NowPlaying song={songInfo} />
         {sessionState === 'idle' && (
           <IdleControls
             connectionStatus={connectionStatus}

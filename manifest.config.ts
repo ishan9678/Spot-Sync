@@ -27,5 +27,6 @@ export default defineManifest({
   content_scripts: [{
     js: ['src/content/main.tsx'],
     matches: ['<all_urls>'],
-  }],
+  },
+  ]
 })

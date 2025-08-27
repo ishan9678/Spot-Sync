@@ -1,8 +1,12 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './views/App.tsx'
+import { getSongInfo } from './spotify.ts'
 
 console.log('[CRXJS] Hello world from content script!')
+
+const songInfo = getSongInfo();
+console.log('Current song info:', songInfo);
 
 const container = document.createElement('div')
 container.id = 'crxjs-app'
