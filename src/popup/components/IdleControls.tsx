@@ -12,7 +12,8 @@ export function IdleControls({ connectionStatus, onStart, onJoin }: IdleControls
   const [joinCode, setJoinCode] = useState('')
 
   const handleJoin = () => {
-    onJoin(joinCode.trim())
+    const code = joinCode.trim()
+    onJoin(code)
   }
 
   return (
@@ -35,6 +36,8 @@ export function IdleControls({ connectionStatus, onStart, onJoin }: IdleControls
           onChange={(e) => setJoinCode(e.target.value)}
           className="session-input"
           maxLength={6}
+          inputMode="numeric"
+          pattern="[0-9]*"
         />
         <button
           className="primary-button join-button"

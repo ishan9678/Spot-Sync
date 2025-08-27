@@ -73,6 +73,12 @@ const sendToRuntime = (message: any) => {
   });
 };
 
+// Generate a simple 6-digit numeric session code
+function generateSessionCode(): string {
+  // Ensures range 100000 - 999999
+  return Math.floor(100000 + Math.random() * 900000).toString();
+}
+
 // Update peer count
 const updatePeerCount = () => {
   const count = Object.keys(connections).length;
@@ -88,6 +94,9 @@ function createPeer(id?: string) {
   // Use the default PeerJS cloud server (0.peerjs.com)
   // The PeerJS library will automatically use this if no host is specified
   const config = {
+    host: '0.peerjs.com',
+    port: 443,
+    path: '/',
     secure: true,
     config: {
       iceServers: [
@@ -120,68 +129,90 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
 
   if (msg.type === "START_SESSION") {
     try {
-      // Create a new peer as host
-      peer = createPeer();
-      
-      // Set a timeout to handle cases where peer doesn't connect
-      const timeout = setTimeout(() => {
-        console.error('[Offscreen] Peer connection timeout');
-        sendResponse({ error: 'Connection timeout - unable to reach PeerJS server' });
-      }, 10000);
+      let attempts = 0;
+      const maxAttempts = 5;
 
-      peer.on("open", (id) => {
-        clearTimeout(timeout);
-        console.log("[Offscreen] Host started session with ID:", id);
-        sendResponse({ sessionId: id });
-      });
-
-      // Listen for incoming connections (clients joining)
-      peer.on("connection", (conn) => {
-        console.log("[Offscreen] Client connected:", conn.peer);
-        connections[conn.peer] = conn;
-        updatePeerCount();
-
-        conn.on("data", (data) => {
-          console.log("[Offscreen] Received from client:", data);
-          // Optionally broadcast this to others
-        });
-
-        conn.on("close", () => {
-          console.log("[Offscreen] Client disconnected:", conn.peer);
-          delete connections[conn.peer];
-          updatePeerCount();
-        });
-
-        conn.on("error", (error) => {
-          console.error("[Offscreen] Connection error:", error);
-          delete connections[conn.peer];
-          updatePeerCount();
-          sendToRuntime({ type: 'CONNECTION_LOST' });
-        });
-      });
-
-      peer.on("error", (error) => {
-        clearTimeout(timeout);
-        console.error("[Offscreen] Peer error:", error);
-        let errorMessage = error.message;
-        
-        // Provide more helpful error messages
-        if (errorMessage.includes('server')) {
-          errorMessage = 'Unable to connect to PeerJS server. Please check your internet connection.';
-        } else if (errorMessage.includes('WebRTC')) {
-          errorMessage = 'WebRTC connection failed. Your browser may not support peer-to-peer connections.';
+      const tryStart = () => {
+        attempts += 1;
+        // Clean up any existing peer before retrying
+        if (peer) {
+          try { peer.destroy(); } catch {}
+          peer = null;
         }
-        
-        sendToRuntime({ type: 'CONNECTION_LOST' });
-        sendResponse({ error: errorMessage });
-      });
 
-      peer.on("disconnected", () => {
-        console.log("[Offscreen] Peer disconnected");
-        sendToRuntime({ type: 'CONNECTION_LOST' });
-      });
+        const code = generateSessionCode();
+        const p = createPeer(code);
+        peer = p;
+
+        const timeout = setTimeout(() => {
+          console.error('[Offscreen] Peer connection timeout');
+          try { p.destroy(); } catch {}
+          if (attempts < maxAttempts) {
+            tryStart();
+          } else {
+            sendResponse({ error: 'Connection timeout - unable to reach PeerJS server' });
+          }
+        }, 10000);
+
+        p.on('open', (id) => {
+          clearTimeout(timeout);
+          console.log('[Offscreen] Host started session with ID:', id);
+          // Attach common listeners for incoming connections
+          p.on('connection', (conn) => {
+            console.log('[Offscreen] Client connected:', conn.peer);
+            connections[conn.peer] = conn;
+            updatePeerCount();
+
+            conn.on('data', (data) => {
+              console.log('[Offscreen] Received from client:', data);
+            });
+
+            conn.on('close', () => {
+              console.log('[Offscreen] Client disconnected:', conn.peer);
+              delete connections[conn.peer];
+              updatePeerCount();
+            });
+
+            conn.on('error', (error) => {
+              console.error('[Offscreen] Connection error:', error);
+              delete connections[conn.peer];
+              updatePeerCount();
+              sendToRuntime({ type: 'CONNECTION_LOST' });
+            });
+          });
+
+          p.on('disconnected', () => {
+            console.log('[Offscreen] Peer disconnected');
+            sendToRuntime({ type: 'CONNECTION_LOST' });
+          });
+
+          sendResponse({ sessionId: id });
+        });
+
+        p.on('error', (error: any) => {
+          clearTimeout(timeout);
+          console.error('[Offscreen] Peer error:', error);
+          const msg = String(error?.message || 'Unknown error');
+          // Retry on unavailable/taken id
+          if (/unavailable|taken/i.test(msg) && attempts < maxAttempts) {
+            try { p.destroy(); } catch {}
+            tryStart();
+            return;
+          }
+          let errorMessage = msg;
+          if (errorMessage.includes('server')) {
+            errorMessage = 'Unable to connect to PeerJS server. Please check your internet connection.';
+          } else if (errorMessage.includes('WebRTC')) {
+            errorMessage = 'WebRTC connection failed. Your browser may not support peer-to-peer connections.';
+          }
+          sendToRuntime({ type: 'CONNECTION_LOST' });
+          sendResponse({ error: errorMessage });
+        });
+      };
+
+      tryStart();
     } catch (error) {
-      console.error("[Offscreen] Failed to create peer:", error);
+      console.error('[Offscreen] Failed to create peer:', error);
       sendResponse({ error: (error as Error).message });
     }
 
@@ -190,6 +221,12 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
 
   if (msg.type === "JOIN_SESSION" && msg.code) {
     try {
+      const code: string = String(msg.code || '').trim();
+      // Validate 6-digit numeric code
+      if (!/^\d{6}$/.test(code)) {
+        sendResponse({ success: false, error: 'Invalid session code. Enter 6 digits.' });
+        return true;
+      }
       peer = createPeer();
       
       // Set a timeout for connection
@@ -200,12 +237,12 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       
       peer.on("open", (id) => {
         console.log("[Offscreen] Client peer open with ID:", id);
-        const conn = peer!.connect(msg.code);
+        const conn = peer!.connect(code);
         
         conn.on("open", () => {
           clearTimeout(timeout);
           console.log("[Offscreen] Connected to host!");
-          connections[msg.code] = conn;
+          connections[code] = conn;
           updatePeerCount();
           sendResponse({ success: true });
         });
@@ -216,7 +253,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
 
         conn.on("close", () => {
           console.log("[Offscreen] Disconnected from host");
-          delete connections[msg.code];
+          delete connections[code];
           updatePeerCount();
           sendToRuntime({ type: 'CONNECTION_LOST' });
         });
@@ -224,7 +261,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
         conn.on("error", (error) => {
           clearTimeout(timeout);
           console.error("[Offscreen] Connection error:", error);
-          delete connections[msg.code];
+          delete connections[code];
           updatePeerCount();
           sendToRuntime({ type: 'CONNECTION_LOST' });
         });
@@ -237,8 +274,8 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
         
         if (errorMessage.includes('server')) {
           errorMessage = 'Unable to connect to PeerJS server. Please check your internet connection.';
-        } else if (errorMessage.includes('peer unavailable')) {
-          errorMessage = 'Session not found. Please check the session code.';
+        } else if (errorMessage.includes('peer unavailable') || /could not connect to peer/i.test(errorMessage)) {
+          errorMessage = 'Session not found or expired. Please check the session code.';
         }
         
         sendResponse({ success: false, error: errorMessage });

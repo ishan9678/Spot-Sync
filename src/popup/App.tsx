@@ -119,6 +119,10 @@ export default function App() {
       toast.error('Please enter a session code')
       return
     }
+    if (!/^\d{6}$/.test(code)) {
+      toast.error('Enter a valid 6-digit code')
+      return
+    }
 
     setConnectionStatus('connecting')
 
