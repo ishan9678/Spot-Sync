@@ -22,7 +22,4 @@ export default defineManifest({
     js: ['src/content/main.tsx'],
     matches: ['https://*/*'],
   }],
-  side_panel: {
-    default_path: 'src/sidepanel/index.html',
-  },
 })
