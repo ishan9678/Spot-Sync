@@ -3,6 +3,10 @@ export type SongInfo = {
   artist: string
   position: string
   duration: string
+  // extended fields to aid UI/controls
+  isPlaying: boolean
+  positionMs: number
+  durationMs: number
 }
 
 // DOM functions
@@ -11,7 +15,12 @@ export function getSongInfo(): SongInfo {
   const artist = document.querySelector('[data-testid="context-item-info-artist"]')?.textContent || ""
   const position = document.querySelector('[data-testid="playback-position"]')?.textContent || ""
   const duration = document.querySelector('[data-testid="playback-duration"]')?.textContent || ""
-  return { title, artist, position, duration }
+  const playBtn = document.querySelector('[data-testid="control-button-playpause"]') as HTMLButtonElement | null
+  const isPlaying = playBtn?.getAttribute("aria-label") === "Pause"
+  const range = document.querySelector('[data-testid="playback-progressbar"] input[type="range"]') as HTMLInputElement | null
+  const positionMs = range ? Number(range.value) || 0 : 0
+  const durationMs = range ? Number(range.max) || 0 : 0
+  return { title, artist, position, duration, isPlaying, positionMs, durationMs }
 }
 
 function play() {

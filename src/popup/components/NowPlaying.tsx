@@ -8,6 +8,9 @@ type SongInfo = {
   artist: string
   position: string
   duration: string
+  isPlaying?: boolean
+  positionMs?: number
+  durationMs?: number
 }
 
 interface Props {
@@ -43,12 +46,18 @@ function msToTime(ms: number): string {
 }
 
 export default function NowPlaying({ song }: Props) {
-  const durationMs = useMemo(() => timeToMs(song?.duration ?? '0'), [song?.duration])
-  const positionMs = useMemo(() => timeToMs(song?.position ?? '0'), [song?.position])
+  const durationMs = useMemo(
+    () => (typeof song?.durationMs === 'number' ? song!.durationMs : timeToMs(song?.duration ?? '0')),
+    [song?.durationMs, song?.duration]
+  )
+  const positionMs = useMemo(
+    () => (typeof song?.positionMs === 'number' ? song!.positionMs : timeToMs(song?.position ?? '0')),
+    [song?.positionMs, song?.position]
+  )
 
   const [sliderMs, setSliderMs] = useState<number>(positionMs)
   const [isSeeking, setIsSeeking] = useState(false)
-  const [isPlaying, setIsPlaying] = useState(false)
+  const [isPlaying, setIsPlaying] = useState<boolean>(Boolean(song?.isPlaying))
   const prevPosRef = useRef<number>(positionMs)
   const prevTsRef = useRef<number>(Date.now())
 
@@ -57,22 +66,24 @@ export default function NowPlaying({ song }: Props) {
     if (!isSeeking) setSliderMs(positionMs)
   }, [positionMs, isSeeking])
 
-  // infer playing state from position deltas (content script doesn't send isPlaying)
+  // prefer explicit flag from content script; fall back to position delta only if undefined
   useEffect(() => {
+    if (typeof song?.isPlaying === 'boolean') {
+      setIsPlaying(song.isPlaying)
+      prevPosRef.current = positionMs
+      prevTsRef.current = Date.now()
+      return
+    }
     const now = Date.now()
     const deltaReported = positionMs - prevPosRef.current
     const deltaTime = now - prevTsRef.current
-    // consider ~1s ticks as playing; near-zero as paused; ignore negative (seek) and huge jumps
     if (deltaTime > 0) {
-      if (deltaReported >= 800 && deltaReported <= 2000) {
-        setIsPlaying(true)
-      } else if (Math.abs(deltaReported) <= 200) {
-        setIsPlaying(false)
-      }
+      if (deltaReported >= 800 && deltaReported <= 2000) setIsPlaying(true)
+      else if (Math.abs(deltaReported) <= 200) setIsPlaying(false)
     }
     prevPosRef.current = positionMs
     prevTsRef.current = now
-  }, [positionMs])
+  }, [song?.isPlaying, positionMs])
 
   if (!song || !song.title) return null
 
