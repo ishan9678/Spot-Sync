@@ -6,9 +6,19 @@ import IdleControls from './components/IdleControls'
 import HostView from './components/HostView'
 import JoinedView from './components/JoinedView'
 import './App.css'
+import {
+  type SessionState,
+  type ConnectionStatus,
+  getSavedState,
+  saveStateSnapshot,
+  getStatus,
+  startHostSession,
+  joinSessionRequest,
+  leaveSessionRequest,
+  isValidSessionCode
+} from './utils/session'
 
-type SessionState = 'idle' | 'hosting' | 'joined'
-type ConnectionStatus = 'connected' | 'disconnected' | 'connecting'
+// Types moved to utils/session
 
 export default function App() {
   const [sessionState, setSessionState] = useState<SessionState>('idle')
@@ -21,12 +31,7 @@ export default function App() {
   useEffect(() => {
     const loadSavedState = async () => {
       try {
-        const result = await chrome.storage.local.get([
-          'sessionState',
-          'sessionCode', 
-          'connectionStatus',
-          'connectedPeers'
-        ])
+  const result = await getSavedState()
         
         if (result.sessionState) {
           setSessionState(result.sessionState)
@@ -45,7 +50,7 @@ export default function App() {
         if (result.sessionState !== 'idle' && result.sessionCode) {
           try {
             // Request current status from offscreen document
-            const statusResponse = await chrome.runtime.sendMessage({ type: 'GET_STATUS' })
+            const statusResponse = await getStatus()
             if (statusResponse?.connected) {
               setConnectionStatus('connected')
             } else {
@@ -54,7 +59,7 @@ export default function App() {
               setConnectionStatus('disconnected')
               setSessionCode('')
               setConnectedPeers(0)
-              await chrome.storage.local.clear()
+              await saveStateSnapshot({ sessionState: 'idle', sessionCode: '', connectionStatus: 'disconnected', connectedPeers: 0 })
             }
           } catch (error) {
             console.log('Could not verify session status:', error)
@@ -65,11 +70,7 @@ export default function App() {
           // No active session; ensure we don't stick in a stale 'connecting' state
           if (result.connectionStatus === 'connecting') {
             setConnectionStatus('disconnected')
-            try {
-              await chrome.storage.local.set({ connectionStatus: 'disconnected' as ConnectionStatus })
-            } catch (_) {
-              // ignore storage failure
-            }
+            await saveStateSnapshot({ connectionStatus: 'disconnected' as ConnectionStatus })
           }
         }
       } catch (error) {
@@ -82,20 +83,12 @@ export default function App() {
 
   // Save state whenever it changes
   useEffect(() => {
-    const saveState = async () => {
-      try {
-        await chrome.storage.local.set({
-          sessionState,
-          sessionCode,
-          connectionStatus,
-          connectedPeers
-        })
-      } catch (error) {
-        console.error('Error saving state:', error)
-      }
-    }
-
-    saveState()
+  saveStateSnapshot({
+      sessionState,
+      sessionCode,
+      connectionStatus,
+      connectedPeers
+  }).catch((err: unknown) => console.error('Error saving state:', err))
   }, [sessionState, sessionCode, connectionStatus, connectedPeers])
 
   const startSession = async () => {
@@ -105,7 +98,7 @@ export default function App() {
     
     try {
       // Send message to background script which forwards to offscreen document
-      const response = await chrome.runtime.sendMessage({ type: 'START_SESSION' })
+  const response = await startHostSession()
       
       if (response.error) {
         setConnectionStatus('disconnected')
@@ -129,7 +122,7 @@ export default function App() {
       toast.error('Please enter a session code')
       return
     }
-    if (!/^\d{6}$/.test(code)) {
+  if (!isValidSessionCode(code)) {
       toast.error('Enter a valid 6-digit code')
       return
     }
@@ -137,10 +130,7 @@ export default function App() {
     setConnectionStatus('connecting')
 
     try {
-      const response = await chrome.runtime.sendMessage({
-        type: 'JOIN_SESSION',
-        code
-      })
+  const response = await joinSessionRequest(code)
       if (response?.success) {
         setSessionState('joined')
         setConnectionStatus('connected')
@@ -160,7 +150,7 @@ export default function App() {
   const leaveSession = async () => {
     try {
       // Send message to background script which forwards to offscreen document
-      await chrome.runtime.sendMessage({ type: 'LEAVE_SESSION' });
+  await leaveSessionRequest()
     } catch (error) {
       console.error('Error leaving session:', error);
     }
@@ -173,11 +163,7 @@ export default function App() {
     setConnectedPeers(0)
     
     // Clear saved state
-    try {
-      await chrome.storage.local.clear()
-    } catch (error) {
-      console.error('Error clearing saved state:', error)
-    }
+  await saveStateSnapshot({ sessionState: 'idle', sessionCode: '', connectionStatus: 'disconnected', connectedPeers: 0 })
     
     toast.success('Left session')
   }
