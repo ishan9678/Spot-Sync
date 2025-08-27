@@ -19,10 +19,13 @@ export default defineManifest({
     type: 'module',
   },
   permissions: [
-    'storage', // probably needed later
+    'storage',
+    'activeTab',
+    'tabs',
+    'offscreen',
   ],
   content_scripts: [{
     js: ['src/content/main.tsx'],
-    matches: ['https://*/*'],
+    matches: ['<all_urls>'],
   }],
 })

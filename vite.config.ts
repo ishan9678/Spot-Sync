@@ -12,6 +12,14 @@ export default defineConfig({
       '@': `${path.resolve(__dirname, 'src')}`,
     },
   },
+  build: {
+    rollupOptions: {
+      input: {
+        popup: 'src/popup/index.html',
+        offscreen: 'src/offscreen/index.html',
+      },
+    },
+  },
   plugins: [
     react(),
     crx({ manifest }),

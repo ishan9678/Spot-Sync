@@ -1,45 +1,315 @@
-#root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
+/* App Container */
+.app {
+  width: 380px;
+  height: 480px;
+  background: #0f0f0f;
+  color: #ffffff;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Header */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24px 24px 20px 24px;
+  border-bottom: 1px solid #222;
+}
+
+.logo-container {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.app-logo {
+  color: #1db954;
+}
+
+.app-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: #ffffff;
+  letter-spacing: -0.3px;
+}
+
+/* Status Indicator */
+.status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.status-icon.connected {
+  color: #1db954;
+}
+
+.status-icon.disconnected {
+  color: #666;
+}
+
+.status-text {
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #999;
+}
+
+.status-text.connected {
+  color: #1db954;
+}
+
+.status-text.disconnected {
+  color: #666;
+}
+
+.status-text.connecting {
+  color: #ffa500;
+}
+
+/* Main Content */
+.main-content {
+  flex: 1;
+  padding: 32px 24px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+/* Session Controls */
+.session-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  align-items: stretch;
+}
+
+/* Buttons */
+.primary-button {
+  background: #1db954;
+  border: none;
+  border-radius: 8px;
+  padding: 16px 24px;
+  color: #000;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
   text-align: center;
 }
 
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
-}
-.logo.crx:hover {
-  filter: drop-shadow(0 0 2em #f2bae4aa);
+.primary-button:hover {
+  background: #1ed760;
+  transform: translateY(-1px);
 }
 
-@keyframes logo-spin {
+.primary-button:active {
+  transform: translateY(0);
+}
+
+.primary-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.start-button {
+  font-size: 16px;
+  padding: 18px 24px;
+}
+
+/* Divider */
+.divider {
+  color: #666;
+  font-size: 12px;
+  font-weight: 500;
+  text-align: center;
+  margin: 4px 0;
+  position: relative;
+}
+
+.divider::before,
+.divider::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  width: 35%;
+  height: 1px;
+  background: #333;
+}
+
+.divider::before {
+  left: 0;
+}
+
+.divider::after {
+  right: 0;
+}
+
+/* Join Section */
+.join-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+}
+
+.session-input {
+  background: #1a1a1a;
+  border: 1px solid #333;
+  border-radius: 8px;
+  padding: 16px 16px;
+  color: #fff;
+  font-size: 14px;
+  text-align: center;
+  letter-spacing: 2px;
+  font-weight: 600;
+  transition: border-color 0.2s ease;
+}
+
+.session-input:focus {
+  outline: none;
+  border-color: #1db954;
+}
+
+.session-input::placeholder {
+  color: #666;
+  letter-spacing: normal;
+  font-weight: 400;
+}
+
+/* Session Active States */
+.session-active {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  align-items: center;
+  text-align: center;
+}
+
+.session-info h3 {
+  margin: 0 0 8px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.session-info p {
+  margin: 0;
+  color: #999;
+  font-size: 13px;
+}
+
+/* Session Code */
+.session-code-container {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #1a1a1a;
+  border: 1px solid #333;
+  border-radius: 8px;
+  padding: 16px 20px;
+  margin-top: 8px;
+}
+
+.session-code {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 3px;
+  color: #1db954;
+  font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+}
+
+.copy-button {
+  background: transparent;
+  border: none;
+  padding: 4px;
+  color: #999;
+  cursor: pointer;
+  transition: color 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.copy-button:hover {
+  color: #1db954;
+}
+
+/* Peers Info */
+.peers-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #1a1a1a;
+  border: 1px solid #333;
+  border-radius: 8px;
+  padding: 12px 16px;
+  color: #999;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.peers-info svg {
+  color: #1db954;
+}
+
+/* Danger Button */
+.danger-button {
+  background: transparent;
+  border: 1px solid #444;
+  border-radius: 8px;
+  padding: 12px 20px;
+  color: #999;
+  font-weight: 500;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.danger-button:hover {
+  border-color: #e22134;
+  color: #e22134;
+}
+
+/* Hosting specific styles */
+.session-active.hosting {
+  border: 1px solid #333;
+  border-radius: 12px;
+  padding: 24px;
+  background: #1a1a1a;
+}
+
+/* Joined specific styles */
+.session-active.joined {
+  border: 1px solid #333;
+  border-radius: 12px;
+  padding: 24px;
+  background: #1a1a1a;
+}
+
+/* Animations */
+@keyframes fadeIn {
   from {
-    transform: rotate(0deg);
+    opacity: 0;
+    transform: translateY(10px);
   }
   to {
-    transform: rotate(360deg);
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  a:nth-of-type(2) .logo {
-    animation: logo-spin infinite 20s linear;
-  }
-}
-
-.card {
-  padding: 2em;
-}
-
-.read-the-docs {
-  color: #888;
+.session-controls,
+.session-active {
+  animation: fadeIn 0.3s ease-out;
 }

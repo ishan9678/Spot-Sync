@@ -9,9 +9,11 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "lucide-react": "^0.542.0",
     "peerjs": "^1.5.5",
     "react": "^19.1.0",
-    "react-dom": "^19.1.0"
+    "react-dom": "^19.1.0",
+    "react-hot-toast": "^2.6.0"
   },
   "devDependencies": {
     "@crxjs/vite-plugin": "^2.0.3",
