@@ -1,6 +1,10 @@
 import { useState, useEffect } from 'react'
 import { Toaster, toast } from 'react-hot-toast'
-import { Music, Users, Copy, LogOut, Wifi, WifiOff } from 'lucide-react'
+import { Music } from 'lucide-react'
+import StatusIndicator from './components/StatusIndicator'
+import IdleControls from './components/IdleControls'
+import HostView from './components/HostView'
+import JoinedView from './components/JoinedView'
 import './App.css'
 
 type SessionState = 'idle' | 'hosting' | 'joined'
@@ -10,7 +14,7 @@ export default function App() {
   const [sessionState, setSessionState] = useState<SessionState>('idle')
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('disconnected')
   const [sessionCode, setSessionCode] = useState<string>('')
-  const [joinCode, setJoinCode] = useState<string>('')
+  // joinCode moved into IdleControls component state
   const [connectedPeers, setConnectedPeers] = useState<number>(0)
 
   // Load saved state when popup opens
@@ -110,19 +114,18 @@ export default function App() {
     }
   }
 
-  const joinSession = async () => {
-    if (!joinCode.trim()) {
+  const joinSession = async (code: string) => {
+    if (!code) {
       toast.error('Please enter a session code')
       return
     }
 
     setConnectionStatus('connecting')
-    
+
     try {
-      // Send message to background script which forwards to offscreen document
-      const response = await chrome.runtime.sendMessage({ 
-        type: 'JOIN_SESSION', 
-        code: joinCode.trim() 
+      const response = await chrome.runtime.sendMessage({
+        type: 'JOIN_SESSION',
+        code
       })
       if (response?.success) {
         setSessionState('joined')
@@ -148,7 +151,7 @@ export default function App() {
     setSessionState('idle')
     setConnectionStatus('disconnected')
     setSessionCode('')
-    setJoinCode('')
+  // joinCode handled inside IdleControls, nothing to clear here
     setConnectedPeers(0)
     
     // Clear saved state
@@ -188,19 +191,7 @@ export default function App() {
     return () => chrome.runtime.onMessage.removeListener(messageListener)
   }, [])
 
-  const StatusIndicator = () => (
-    <div className="status-indicator">
-      {connectionStatus === 'connected' ? (
-        <Wifi className="status-icon connected" size={16} />
-      ) : (
-        <WifiOff className="status-icon disconnected" size={16} />
-      )}
-      <span className={`status-text ${connectionStatus}`}>
-        {connectionStatus === 'connected' ? 'Connected' : 
-         connectionStatus === 'connecting' ? 'Connecting...' : 'Disconnected'}
-      </span>
-    </div>
-  )
+  // StatusIndicator moved to component
 
   return (
     <div className="app">
@@ -221,93 +212,32 @@ export default function App() {
           <Music className="app-logo" size={24} />
           <h1 className="app-title">Spot Sync</h1>
         </div>
-        <StatusIndicator />
+  <StatusIndicator connectionStatus={connectionStatus} />
       </div>
 
       <div className="main-content">
         {sessionState === 'idle' && (
-          <div className="session-controls">
-            <button 
-              className="primary-button start-button"
-              onClick={startSession}
-              disabled={connectionStatus === 'connecting'}
-            >
-              Start Session
-            </button>
-            
-            <div className="divider">or</div>
-            
-            <div className="join-section">
-              <input
-                type="text"
-                placeholder="Enter session code"
-                value={joinCode}
-                onChange={(e) => setJoinCode(e.target.value)}
-                className="session-input"
-                maxLength={6}
-              />
-              <button 
-                className="primary-button join-button"
-                onClick={joinSession}
-                disabled={connectionStatus === 'connecting'}
-              >
-                Join Session
-              </button>
-            </div>
-          </div>
+          <IdleControls
+            connectionStatus={connectionStatus}
+            onStart={startSession}
+            onJoin={joinSession}
+          />
         )}
 
         {sessionState === 'hosting' && (
-          <div className="session-active hosting">
-            <div className="session-info">
-              <h3>Hosting Session</h3>
-              <div className="session-code-container">
-                <span className="session-code">{sessionCode}</span>
-                <button 
-                  className="copy-button"
-                  onClick={copyToClipboard}
-                  title="Copy to clipboard"
-                >
-                  <Copy size={16} />
-                </button>
-              </div>
-            </div>
-            
-            <div className="peers-info">
-              <Users size={16} />
-              <span>{connectedPeers} peer{connectedPeers !== 1 ? 's' : ''} connected</span>
-            </div>
-            
-            <button 
-              className="danger-button leave-button"
-              onClick={leaveSession}
-            >
-              <LogOut size={16} />
-              Leave Session
-            </button>
-          </div>
+          <HostView
+            sessionCode={sessionCode}
+            connectedPeers={connectedPeers}
+            onCopy={copyToClipboard}
+            onLeave={leaveSession}
+          />
         )}
 
         {sessionState === 'joined' && (
-          <div className="session-active joined">
-            <div className="session-info">
-              <h3>Session Joined</h3>
-              <p>Connected to host</p>
-            </div>
-            
-            <div className="peers-info">
-              <Users size={16} />
-              <span>{connectedPeers + 1} total participant{connectedPeers + 1 !== 1 ? 's' : ''}</span>
-            </div>
-            
-            <button 
-              className="danger-button leave-button"
-              onClick={leaveSession}
-            >
-              <LogOut size={16} />
-              Leave Session
-            </button>
-          </div>
+          <JoinedView
+            connectedPeers={connectedPeers}
+            onLeave={leaveSession}
+          />
         )}
       </div>
     </div>
