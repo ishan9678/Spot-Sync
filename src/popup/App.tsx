@@ -61,6 +61,16 @@ export default function App() {
             // Assume disconnected if we can't verify
             setConnectionStatus('disconnected')
           }
+        } else {
+          // No active session; ensure we don't stick in a stale 'connecting' state
+          if (result.connectionStatus === 'connecting') {
+            setConnectionStatus('disconnected')
+            try {
+              await chrome.storage.local.set({ connectionStatus: 'disconnected' as ConnectionStatus })
+            } catch (_) {
+              // ignore storage failure
+            }
+          }
         }
       } catch (error) {
         console.error('Error loading saved state:', error)
@@ -135,6 +145,10 @@ export default function App() {
         setSessionState('joined')
         setConnectionStatus('connected')
         toast.success('Joined session successfully!')
+      } else {
+        setConnectionStatus('disconnected')
+        const msg = response?.error || 'Failed to join session'
+        toast.error(msg)
       }
     } catch (error) {
       console.error('Failed to join session:', error)
