@@ -20,13 +20,15 @@ export async function getSavedState(): Promise<Required<SavedState>> {
 	}
 }
 
-export async function saveStateSnapshot(partial: SavedState): Promise<void> {
-	await chrome.storage.local.set(partial)
-}
-
-export async function getStatus(): Promise<{ connected: boolean; peerCount: number; peerId: string | null } | undefined> {
+export async function getStatus(): Promise<{ 
+  connected: boolean; 
+  peerCount: number; 
+  peerId: string | null; 
+  sessionCode: string;
+  sessionState: SessionState;
+} | undefined> {
 	try {
-		const status = await chrome.runtime.sendMessage({ type: 'GET_STATUS' })
+		const status = await chrome.runtime.sendMessage({ type: SESSION_EVENTS.STATUS })
 		return status
 	} catch {
 		return undefined

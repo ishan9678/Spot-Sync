@@ -9,7 +9,6 @@ import NowPlaying from './components/NowPlaying'
 import './App.css'
 import {
   getSavedState,
-  saveStateSnapshot,
   getStatus,
   startHostSession,
   joinSessionRequest,
@@ -28,58 +27,29 @@ export default function App() {
   const [onSpotify, setOnSpotify] = useState<boolean>(false)
   const [songInfo, setSongInfo] = useState<{ title: string; artist: string; position: string; duration: string } | null>(null)
 
-  // Load saved state when popup opens
+  // Load current state from background script when popup opens
   useEffect(() => {
-    const loadSavedState = async () => {
+    const loadCurrentState = async () => {
       try {
-        const result = await getSavedState()
-        
-        if (result.sessionState) {
-          setSessionState(result.sessionState)
-        }
-        if (result.sessionCode) {
-          setSessionCode(result.sessionCode)
-        }
-        if (result.connectionStatus) {
-          setConnectionStatus(result.connectionStatus)
-        }
-        if (result.connectedPeers !== undefined) {
-          setConnectedPeers(result.connectedPeers)
-        }
-
-        // If we have an active session, verify it's still connected
-        if (result.sessionState !== 'idle' && result.sessionCode) {
-          try {
-            // Request current status from offscreen document
-            const statusResponse = await getStatus()
-            if (statusResponse?.connected) {
-              setConnectionStatus('connected')
-            } else {
-              // Session is no longer active, reset state
-              setSessionState('idle')
-              setConnectionStatus('disconnected')
-              setSessionCode('')
-              setConnectedPeers(0)
-              await saveStateSnapshot({ sessionState: 'idle', sessionCode: '', connectionStatus: 'disconnected', connectedPeers: 0 })
-            }
-          } catch (error) {
-            console.log('Could not verify session status:', error)
-            // Assume disconnected if we can't verify
-            setConnectionStatus('disconnected')
-          }
-        } else {
-          // No active session; ensure we don't stick in a stale 'connecting' state
-          if (result.connectionStatus === 'connecting') {
-            setConnectionStatus('disconnected')
-            await saveStateSnapshot({ connectionStatus: 'disconnected' as ConnectionStatus })
-          }
+        const status = await getStatus()
+        if (status) {
+          setSessionState(status.sessionState || 'idle')
+          setSessionCode(status.sessionCode || '')
+          setConnectionStatus(status.connected ? 'connected' : 'disconnected')
+          setConnectedPeers(status.peerCount || 0)
         }
       } catch (error) {
-        console.error('Error loading saved state:', error)
+        console.error('Error loading current state:', error)
+        // Fallback to storage if background script fails
+        const result = await getSavedState()
+        setSessionState(result.sessionState)
+        setSessionCode(result.sessionCode)
+        setConnectionStatus(result.connectionStatus)
+        setConnectedPeers(result.connectedPeers)
       }
     }
 
-    loadSavedState()
+    loadCurrentState()
   }, [])
 
   // Check active tab once to indicate if user is on Spotify
@@ -93,16 +63,6 @@ export default function App() {
       }
     })()
   }, [])
-
-  // Save state whenever it changes
-  useEffect(() => {
-  saveStateSnapshot({
-      sessionState,
-      sessionCode,
-      connectionStatus,
-      connectedPeers
-  }).catch((err: unknown) => console.error('Error saving state:', err))
-  }, [sessionState, sessionCode, connectionStatus, connectedPeers])
 
   const startSession = async () => {
     if (connectionStatus === 'connecting') return
@@ -157,21 +117,17 @@ export default function App() {
   const leaveSession = async () => {
     try {
       await leaveSessionRequest()
+      toast.success('Left session')
     } catch (error) {
-      console.error('Error leaving session:', error);
+      console.error('Error leaving session:', error)
+      toast.error('Failed to leave session')
     }
     
-    // Clear local state
+    // Update local UI state - background script handles storage
     setSessionState('idle')
     setConnectionStatus('disconnected')
     setSessionCode('')
-  // joinCode handled inside IdleControls, nothing to clear here
     setConnectedPeers(0)
-    
-    // Clear saved state
-  await saveStateSnapshot({ sessionState: 'idle', sessionCode: '', connectionStatus: 'disconnected', connectedPeers: 0 })
-    
-    toast.success('Left session')
   }
 
   const copyToClipboard = async () => {
@@ -216,14 +172,21 @@ export default function App() {
       } else if (message.type === 'CONNECTION_RESTORED') {
         setConnectionStatus('connected')
         toast.success('Connection restored')
+      } else if (message.type === 'SESSION_ENDED') {
+        // Session ended by host or due to disconnect
+        setSessionState('idle')
+        setConnectionStatus('disconnected')
+        setSessionCode('')
+        setConnectedPeers(0)
+        toast.error(message.message || 'Session ended')
+      } else if (message.type === 'CLIENT_JOINED') {
+        toast.success(message.message || 'Someone joined the session')
       }
     }
 
     chrome.runtime.onMessage.addListener(messageListener)
     return () => chrome.runtime.onMessage.removeListener(messageListener)
   }, [])
-
-  // StatusIndicator moved to component
 
   return (
     <div className="app">
@@ -253,7 +216,8 @@ export default function App() {
       </div>
 
       <div className="main-content">
-  <NowPlaying song={songInfo} />
+      <NowPlaying song={songInfo} />
+
         {sessionState === 'idle' && (
           <IdleControls
             connectionStatus={connectionStatus}

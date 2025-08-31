@@ -15,7 +15,7 @@ export function JoinedView({ connectedPeers, onLeave }: JoinedViewProps) {
 
       <div className="peers-info">
         <Users size={16} />
-        <span>{connectedPeers + 1} total participant{connectedPeers + 1 !== 1 ? 's' : ''}</span>
+        <span>{connectedPeers} total participant{connectedPeers !== 1 ? 's' : ''}</span>
       </div>
 
       <button
