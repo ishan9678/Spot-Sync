@@ -3,16 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { getActiveTab, isSpotifyUrl } from '../utils/tabs'
 import { Play as PlayIcon, Pause as PauseIcon } from 'lucide-react'
 import { timeToMs } from '../utils/time'
-
-type SongInfo = {
-  title: string
-  artist: string
-  position: string
-  duration: string
-  isPlaying?: boolean
-  positionMs?: number
-  durationMs?: number
-}
+import { SongInfo } from '@/types'
 
 interface Props {
   song: SongInfo | null

@@ -1,13 +1,4 @@
-export type SongInfo = {
-  title: string
-  artist: string
-  position: string
-  duration: string
-  // extended fields to aid UI/controls
-  isPlaying: boolean
-  positionMs: number
-  durationMs: number
-}
+import { SongInfo } from "@/types"
 
 // DOM functions
 export function getSongInfo(): SongInfo {
