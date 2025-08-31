@@ -234,10 +234,12 @@ chrome.runtime.onMessage.addListener((msg, _, sendResponse) => {
     }
 
     case 'SONG_INFO': {
-      socket?.emit(SESSION_EVENTS.UPDATE, { 
-        sessionCode: currentSessionCode,
-        data: msg.song
-      })
+      if( sessionState === "hosting"){
+        socket?.emit(SESSION_EVENTS.UPDATE, { 
+            sessionCode: currentSessionCode,
+            data: msg.song
+        })
+      }
       break
     }
 
