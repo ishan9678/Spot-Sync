@@ -1,100 +1,108 @@
 import express from "express"
 import http from "http"
-import { Server } from 'socket.io';
-import { SESSION_EVENTS } from "./constants";
-import cors from "cors";
+import { Server } from "socket.io"
+import { SESSION_EVENTS } from "./constants"
+import cors from "cors"
 
-const app = express();
-app.use(cors());
+const app = express()
+app.use(cors())
 
-const server = http.createServer(app);
+const server = http.createServer(app)
 const io = new Server(server, {
-  cors: {
-    origin: "*",
-    methods: ["GET", "POST"],
-  },
-});
+  cors: { origin: "*", methods: ["GET", "POST"] },
+})
 
-app.get("/", (_req, res) => {
-  res.send("works fine");
-});
+app.get("/", (_req, res) => res.send("works fine"))
 
- // sessionCode -> hostSocketId
-const sessions: Record<string, string> = {};
+// --- State ---
+const sessions: Record<string, string> = {} // sessionCode -> hostSocketId
 
-io.on('connection', (socket) => {
+// --- Helpers ---
+function generateCode() {
+  return Math.floor(100000 + Math.random() * 900000).toString()
+}
+
+function getHost(sessionCode: string) {
+  return sessions[sessionCode] || null
+}
+
+function updateRoomSize(sessionCode: string) {
+  const sockets = io.sockets.adapter.rooms.get(sessionCode)
+  const size = sockets?.size ?? 0
+  io.to(sessionCode).emit("peer_count", size)
+  console.log(`Room ${sessionCode} now has ${size} peers`)
+}
+
+function endSession(sessionCode: string, reason: string) {
+  io.to(sessionCode).emit(SESSION_EVENTS.END, { message: reason })
+  delete sessions[sessionCode]
+  console.log(`Session ${sessionCode} ended: ${reason}`)
+}
+
+io.on("connection", (socket) => {
+  console.log(`Socket connected: ${socket.id}`)
+
+  // --- START session ---
   socket.on(SESSION_EVENTS.START, (_, callback) => {
-    // generates a 6 digit code
-    const sessionCode = Math.floor(100000 + Math.random() * 900000).toString();
-    sessions[sessionCode] = socket.id;
+    const sessionCode = generateCode()
+    sessions[sessionCode] = socket.id
+    socket.join(sessionCode)
+    updateRoomSize(sessionCode)
+    console.log(`Host ${socket.id} started ${sessionCode}`)
+    callback({ success: true, sessionCode })
+  })
 
-    // join room
-    socket.join(sessionCode);
-
-    console.log("room created")
-
-    callback({ success: true, sessionCode });
-  });
-
+  // --- JOIN session ---
   socket.on(SESSION_EVENTS.JOIN, ({ sessionCode }, callback) => {
-    const hostSocketId = sessions[sessionCode];
-    if (!hostSocketId) {
-        console.log("did not find host")
-        callback({ success: false, error: 'Invalid code' });
-        return;
-    }
+    const hostId = getHost(sessionCode)
+    if (!hostId) return callback({ success: false, error: "Invalid code" })
 
-    // client joins room
-    socket.join(sessionCode);
+    socket.join(sessionCode)
+    updateRoomSize(sessionCode)
 
-    // notify host
-    io.to(hostSocketId).emit(SESSION_EVENTS.CLIENT_JOINED, { message: 
-        "Someone joined the listening session" 
-    });
+    io.to(hostId).emit(SESSION_EVENTS.CLIENT_JOINED, { clientId: socket.id })
+    console.log(`Client ${socket.id} joined ${sessionCode}`)
+    callback({ success: true })
+  })
 
-    console.log("someone joined the session")
-
-    callback({ success: true });
-  });
-
+  // --- UPDATE ---
   socket.on(SESSION_EVENTS.UPDATE, ({ sessionCode, data }, callback) => {
-    const hostSocketId = sessions[sessionCode];
-    if (!hostSocketId) {
-      callback({ success: false, error: 'Invalid code' });
-      return;
-    }
+    if (!getHost(sessionCode)) return callback({ success: false, error: "Invalid code" })
+    io.to(sessionCode).emit(SESSION_EVENTS.UPDATE, { data })
+    callback({ success: true })
+  })
 
-    // update every user in room
-    io.to(sessionCode).emit(SESSION_EVENTS.UPDATE, { data });
-
-    callback({ success: true });
-  });
-
+  // --- LEAVE ---
   socket.on(SESSION_EVENTS.LEAVE, ({ sessionCode }, callback) => {
-    const hostSocketId = sessions[sessionCode];
-    if (!hostSocketId) {
-      return;
-    }
+    socket.leave(sessionCode)
+    updateRoomSize(sessionCode)
+    io.to(getHost(sessionCode)!).emit(SESSION_EVENTS.LEAVE, { clientId: socket.id })
+    console.log(`Client ${socket.id} left ${sessionCode}`)
+    callback({ success: true })
+  })
 
-    // notify host
-    io.to(hostSocketId).emit(SESSION_EVENTS.LEAVE, { message: "User left" });
-
-    callback({ success: true });
-  });
-
+  // --- END (host only) ---
   socket.on(SESSION_EVENTS.END, ({ sessionCode }) => {
-    const hostSocketId = sessions[sessionCode];
-    if (!hostSocketId) {
-      return;
+    if (socket.id === getHost(sessionCode)) {
+      endSession(sessionCode, "Host ended session")
     }
+  })
 
-    // notify room
-    io.to(sessionCode).emit(SESSION_EVENTS.END, { message: "Session ended by host" });
-  });
-
-});
-
+  // --- Disconnect ---
+  // This is for when the host disconnects unintentionally (ie not by clicking end session)
+  socket.on("disconnect", () => {
+    console.log(`Socket disconnected: ${socket.id}`)
+    for (const [code, hostId] of Object.entries(sessions)) {
+      if (hostId === socket.id) {
+        endSession(code, "Host disconnected")
+      } else {
+        // peer left, update room size after cleanup
+        setTimeout(() => updateRoomSize(code), 100)
+      }
+    }
+  })
+})
 
 server.listen(process.env.PORT || 3000, () => {
-  console.log(`server running at port ${process.env.PORT || 3000}`);
-});
+  console.log(`server running at port ${process.env.PORT || 3000}`)
+})

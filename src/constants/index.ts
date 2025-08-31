@@ -10,4 +10,5 @@ export const SESSION_EVENTS = {
   CLIENT_JOINED: "client_joined",
   UPDATE: "update_session",
   END: "end_session",
+  STATUS: "session_status"
 };
