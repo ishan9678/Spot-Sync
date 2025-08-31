@@ -46,3 +46,7 @@ export async function joinSessionRequest(sessionCode: string): Promise<{ success
 export async function leaveSessionRequest(): Promise<{ success?: boolean; error?: string }> {
 	return chrome.runtime.sendMessage({ type: SESSION_EVENTS.LEAVE })
 }
+
+export async function endSessionRequest(): Promise<{ success?: boolean; error?: string }> {
+	return chrome.runtime.sendMessage({ type: SESSION_EVENTS.END })
+}

@@ -73,12 +73,11 @@ io.on("connection", (socket) => {
   })
 
   // --- LEAVE ---
-  socket.on(SESSION_EVENTS.LEAVE, ({ sessionCode }, callback) => {
+  socket.on(SESSION_EVENTS.LEAVE, ({ sessionCode }) => {
     socket.leave(sessionCode)
     updateRoomSize(sessionCode)
     io.to(getHost(sessionCode)!).emit(SESSION_EVENTS.LEAVE, { clientId: socket.id })
     console.log(`Client ${socket.id} left ${sessionCode}`)
-    callback({ success: true })
   })
 
   // --- END (host only) ---

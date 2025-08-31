@@ -9,6 +9,7 @@ let currentSessionCode: string = ''
 let sessionState: SessionState = 'idle'
 let connectionStatus: ConnectionStatus = 'disconnected'
 let connectedPeers: number = 0
+let intentionalDisconnect: boolean = false
 
 // -------------------- Helpers -------------------- //
 
@@ -100,17 +101,16 @@ function initSocket() {
     console.log("[BG] Disconnected:", reason)
     setConnectionStatus('disconnected')
     
-    // If we have an active session and disconnect unexpectedly, 
-    // it might be a connection issue rather than intentional
-    if (sessionState !== 'idle' && reason !== 'io client disconnect') {
-      // This is likely an unexpected disconnect
-      notifyPopup('CONNECTION_LOST')
-    } else if (sessionState === 'idle') {
-      // Normal disconnect when no session is active
-      notifyPopup('CONNECTION_LOST')
+    // Don't show "connection lost" if this was an intentional disconnect
+    if (!intentionalDisconnect) {
+      // This is an unexpected disconnect (server issues, network problems, etc.)
+      if (sessionState !== 'idle') {
+        notifyPopup('CONNECTION_LOST')
+      }
     }
-    // If reason is 'io client disconnect', it was intentional (leave/end session)
-    // and we don't need to show connection lost message
+    
+    // Reset the flag after handling
+    intentionalDisconnect = false
   })
 
   socket.on("connect_error", (err) => {
@@ -139,6 +139,7 @@ function initSocket() {
 
 function cleanupSocket() {
   if (socket) {
+    intentionalDisconnect = true
     socket.disconnect()
     socket = null
   }
@@ -199,16 +200,10 @@ chrome.runtime.onMessage.addListener((msg, _, sendResponse) => {
     }
 
     case SESSION_EVENTS.LEAVE: {
-      socket?.emit(
-        SESSION_EVENTS.LEAVE,
-        { sessionCode: currentSessionCode },
-        (ack: { success?: boolean }) => {
-          sendResponse({ success: ack.success || true })
-        }
-      )
+      socket?.emit(SESSION_EVENTS.LEAVE, { sessionCode: currentSessionCode })
       resetSessionState()
       cleanupSocket()
-      return true
+      break
     }
 
     case SESSION_EVENTS.END: {

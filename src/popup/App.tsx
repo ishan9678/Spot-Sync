@@ -13,6 +13,7 @@ import {
   startHostSession,
   joinSessionRequest,
   leaveSessionRequest,
+  endSessionRequest,
   isValidSessionCode
 } from './utils/session'
 import { getActiveTabUrl, isSpotifyUrl } from './utils/tabs'
@@ -114,16 +115,33 @@ export default function App() {
     }
   }
 
+  const endSession = async () => {
+      try {
+        await endSessionRequest()
+        toast.success('Session ended')
+      } catch (error) {
+        console.error('Error ending session:', error)
+        toast.error('Failed to end session')
+      }
+      
+      // Update local UI state
+      setSessionState('idle')
+      setConnectionStatus('disconnected')
+      setSessionCode('')
+      setConnectedPeers(0)
+  }
+
   const leaveSession = async () => {
     try {
       await leaveSessionRequest()
       toast.success('Left session')
     } catch (error) {
       console.error('Error leaving session:', error)
-      toast.error('Failed to leave session')
+      // Still show success since we've already left locally
+      toast.success('Left session')
     }
-    
-    // Update local UI state - background script handles storage
+
+    // Update local UI state
     setSessionState('idle')
     setConnectionStatus('disconnected')
     setSessionCode('')
@@ -178,7 +196,16 @@ export default function App() {
         setConnectionStatus('disconnected')
         setSessionCode('')
         setConnectedPeers(0)
-        toast.error(message.message || 'Session ended')
+        
+        // Show different messages based on the reason
+        const reason = message.message || 'Session ended'
+        if (reason.includes('Host disconnected')) {
+          toast.error('Host disconnected - session ended')
+        } else if (reason.includes('ended by host')) {
+          toast.error('Session ended by host')
+        } else {
+          toast.error(reason)
+        }
       } else if (message.type === 'CLIENT_JOINED') {
         toast.success(message.message || 'Someone joined the session')
       }
@@ -231,7 +258,7 @@ export default function App() {
             sessionCode={sessionCode}
             connectedPeers={connectedPeers}
             onCopy={copyToClipboard}
-            onLeave={leaveSession}
+            onLeave={endSession}
           />
         )}
 

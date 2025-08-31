@@ -34,7 +34,7 @@ export function HostView({ sessionCode, connectedPeers, onCopy, onLeave }: HostV
         onClick={onLeave}
       >
         <LogOut size={16} />
-        Leave Session
+        End Session
       </button>
     </div>
   )
