@@ -37,8 +37,8 @@ export async function startHostSession(): Promise<{ error?: string; sessionId?: 
 	return chrome.runtime.sendMessage({ type: SESSION_EVENTS.START })
 }
 
-export async function joinSessionRequest(code: string): Promise<{ success?: boolean; error?: string }> {
-	return chrome.runtime.sendMessage({ type: SESSION_EVENTS.JOIN, code })
+export async function joinSessionRequest(sessionCode: string): Promise<{ success?: boolean; error?: string }> {
+	return chrome.runtime.sendMessage({ type: SESSION_EVENTS.JOIN, sessionCode })
 }
 
 export async function leaveSessionRequest(): Promise<{ success?: boolean; error?: string }> {

@@ -18,16 +18,16 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     if (msg.type === SESSION_EVENTS.START) {
     initSocket();
 
-    socket?.emit(SESSION_EVENTS.START, {}, (ack: { sessionId: string }) => {
+    socket?.emit(SESSION_EVENTS.START, {}, (ack: { sessionCode: string }) => {
         // ack is the acknowledgment from the server (callback)
-        sendResponse({ sessionId: ack.sessionId });
+        sendResponse({ sessionCode: ack.sessionCode });
     });
 
     return true; // for async (sendResponse is synchronous)
 
   } else if (msg.type === SESSION_EVENTS.JOIN) {
     // join session
-    socket?.emit(SESSION_EVENTS.JOIN, { code: msg.code }, (ack: { success: boolean }) => {
+    socket?.emit(SESSION_EVENTS.JOIN, { sessionCode: msg.sessionCode }, (ack: { success: boolean }) => {
         sendResponse({ success: ack.success });
     });
 
