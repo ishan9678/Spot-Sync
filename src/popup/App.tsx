@@ -157,7 +157,6 @@ export default function App() {
     }
   }
 
-  // Listen for connection updates from offscreen document via background script
   useEffect(() => {
     const lastMismatchRef = { key: '', ts: 0 }
     const messageListener = (message: any) => {
@@ -234,12 +233,12 @@ export default function App() {
           <Music className="app-logo" size={24} />
           <h1 className="app-title">Spot Sync</h1>
         </div>
-  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-    <div className="spotify-indicator" title={onSpotify ? 'On Spotify' : 'Not on Spotify'} aria-label={onSpotify ? 'On Spotify' : 'Not on Spotify'}>
-      <span className={`dot ${onSpotify ? 'on' : 'off'}`} />
-    </div>
-    <StatusIndicator connectionStatus={connectionStatus} />
-  </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div className="spotify-indicator" title={onSpotify ? 'On Spotify' : 'Not on Spotify'} aria-label={onSpotify ? 'On Spotify' : 'Not on Spotify'}>
+            <span className={`dot ${onSpotify ? 'on' : 'off'}`} />
+          </div>
+          <StatusIndicator connectionStatus={connectionStatus} />
+        </div>
       </div>
 
       <div className="main-content">

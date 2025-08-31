@@ -66,18 +66,18 @@ io.on("connection", (socket) => {
   })
 
   // --- UPDATE ---
-  socket.on(SESSION_EVENTS.UPDATE, ({ sessionCode, data }, callback) => {
-    if (!getHost(sessionCode)) return callback({ success: false, error: "Invalid code" })
+  socket.on(SESSION_EVENTS.UPDATE, ({ sessionCode, data }) => {
+    if (!getHost(sessionCode)) { return}
     io.to(sessionCode).emit(SESSION_EVENTS.UPDATE, { data })
-    callback({ success: true })
   })
 
   // --- LEAVE ---
-  socket.on(SESSION_EVENTS.LEAVE, ({ sessionCode }) => {
+  socket.on(SESSION_EVENTS.LEAVE, ({ sessionCode }, callback) => {
     socket.leave(sessionCode)
     updateRoomSize(sessionCode)
     io.to(getHost(sessionCode)!).emit(SESSION_EVENTS.LEAVE, { clientId: socket.id })
     console.log(`Client ${socket.id} left ${sessionCode}`)
+    callback({ success: true })
   })
 
   // --- END (host only) ---

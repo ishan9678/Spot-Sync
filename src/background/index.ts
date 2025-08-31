@@ -135,6 +135,11 @@ function initSocket() {
     resetSessionState()
     notifyPopup('SESSION_ENDED', data)
   })
+
+  socket.on(SESSION_EVENTS.UPDATE, (data) => {
+    console.log('[BG] Song info updated:', data)
+    notifyPopup('SONG_INFO_UPDATED', data)
+  })
 }
 
 function cleanupSocket() {
@@ -200,16 +205,39 @@ chrome.runtime.onMessage.addListener((msg, _, sendResponse) => {
     }
 
     case SESSION_EVENTS.LEAVE: {
-      socket?.emit(SESSION_EVENTS.LEAVE, { sessionCode: currentSessionCode })
-      resetSessionState()
-      cleanupSocket()
-      break
+      if (!socket || !socket.connected) {
+        // Socket not connected, just clean up locally
+        resetSessionState()
+        cleanupSocket()
+        sendResponse({ success: true })
+        return true
+      }
+
+      socket.emit(
+        SESSION_EVENTS.LEAVE,
+        { sessionCode: currentSessionCode },
+        (ack: { success?: boolean }) => {
+          sendResponse({ success: ack.success || true })
+          // Clean up after sending response
+          resetSessionState()
+          cleanupSocket()
+        }
+      )
+      return true
     }
 
     case SESSION_EVENTS.END: {
       socket?.emit(SESSION_EVENTS.END, { sessionCode: currentSessionCode })
       resetSessionState()
       cleanupSocket()
+      break
+    }
+
+    case 'SONG_INFO': {
+      socket?.emit(SESSION_EVENTS.UPDATE, { 
+        sessionCode: currentSessionCode,
+        data: msg.song
+      })
       break
     }
 

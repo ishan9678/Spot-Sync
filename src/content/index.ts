@@ -60,6 +60,6 @@ chrome.runtime.onMessage.addListener((msg) => {
 setInterval(() => {
   const song = getSongInfo()
   if (song.title) {
-    chrome.runtime.sendMessage({ type: "SONG_INFO", payload: song })
+    chrome.runtime.sendMessage({ type: "SONG_INFO", song: song })
   }
 }, 1000)
