@@ -2,11 +2,18 @@ import express from "express"
 import http from "http"
 import { Server } from 'socket.io';
 import { SESSION_EVENTS } from "./constants";
+import cors from "cors";
 
 const app = express();
-const server = http.createServer(app);
-const io = new Server(server);
+app.use(cors());
 
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"],
+  },
+});
 
 app.get("/", (_req, res) => {
   res.send("works fine");
@@ -16,8 +23,6 @@ app.get("/", (_req, res) => {
 const sessions: Record<string, string> = {};
 
 io.on('connection', (socket) => {
-  console.log('a user connected');
-
   socket.on(SESSION_EVENTS.START, (_, callback) => {
     // generates a 6 digit code
     const sessionCode = Math.floor(100000 + Math.random() * 900000).toString();
@@ -26,12 +31,15 @@ io.on('connection', (socket) => {
     // join room
     socket.join(sessionCode);
 
+    console.log("room created")
+
     callback({ success: true, sessionCode });
   });
 
   socket.on(SESSION_EVENTS.JOIN, ({ sessionCode }, callback) => {
     const hostSocketId = sessions[sessionCode];
     if (!hostSocketId) {
+        console.log("did not find host")
         callback({ success: false, error: 'Invalid code' });
         return;
     }
@@ -43,6 +51,8 @@ io.on('connection', (socket) => {
     io.to(hostSocketId).emit(SESSION_EVENTS.CLIENT_JOINED, { message: 
         "Someone joined the listening session" 
     });
+
+    console.log("someone joined the session")
 
     callback({ success: true });
   });

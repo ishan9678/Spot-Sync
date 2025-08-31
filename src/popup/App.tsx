@@ -114,12 +114,12 @@ export default function App() {
     if (response.error) {
       setConnectionStatus('disconnected')
       toast.error(response.error)
-    } else if (response.sessionId) {
-      setSessionCode(response.sessionId)
-        setSessionState('hosting')
-        setConnectionStatus('connected')
-        toast.success('Session started!')
-      }
+    } else if (response.sessionCode) {
+      setSessionCode(response.sessionCode)
+      setSessionState('hosting')
+      setConnectionStatus('connected')
+      toast.success('Session started!')
+    }
     } catch (error) {
       console.error('Failed to start session:', error)
       setConnectionStatus('disconnected')

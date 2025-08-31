@@ -33,7 +33,7 @@ export async function getStatus(): Promise<{ connected: boolean; peerCount: numb
 	}
 }
 
-export async function startHostSession(): Promise<{ error?: string; sessionId?: string }> {
+export async function startHostSession(): Promise<{ error?: string; sessionCode?: string }> {
 	return chrome.runtime.sendMessage({ type: SESSION_EVENTS.START })
 }
 

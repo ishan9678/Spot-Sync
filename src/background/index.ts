@@ -7,9 +7,16 @@ let socket: Socket | null = null;
 
 function initSocket() {
   if (!socket) {
-    socket = io(URL);
+    socket = io(URL, {
+      transports: ["websocket"], // force WebSocket only
+      reconnection: true,        // auto reconnect
+      reconnectionAttempts: Infinity,
+      reconnectionDelay: 1000,   // 1s before retry
+    });
+
     socket.on("connect", () => console.log("[BG] Connected to server:", socket?.id));
     socket.on("disconnect", () => console.log("[BG] Disconnected"));
+    socket.on("connect_error", (err) => console.error("[BG] Connection error:", err));
   }
 }
 
@@ -29,6 +36,7 @@ chrome.runtime.onMessage.addListener((msg, _, sendResponse) => {
       return true; // for async (sendResponse is synchronous)
     }
     case SESSION_EVENTS.JOIN: {
+      initSocket();
       // join session
       socket?.emit(
         SESSION_EVENTS.JOIN,
