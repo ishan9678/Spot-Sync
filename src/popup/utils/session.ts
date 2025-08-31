@@ -1,4 +1,5 @@
 import type { SessionState, ConnectionStatus, SavedState } from '@/types'
+import { SESSION_EVENTS } from '@/constants'
 
 export function isValidSessionCode(code: string): boolean {
 	return /^\d{6}$/.test(code)
@@ -33,13 +34,13 @@ export async function getStatus(): Promise<{ connected: boolean; peerCount: numb
 }
 
 export async function startHostSession(): Promise<{ error?: string; sessionId?: string }> {
-	return chrome.runtime.sendMessage({ type: 'START_SESSION' })
+	return chrome.runtime.sendMessage({ type: SESSION_EVENTS.START })
 }
 
 export async function joinSessionRequest(code: string): Promise<{ success?: boolean; error?: string }> {
-	return chrome.runtime.sendMessage({ type: 'JOIN_SESSION', code })
+	return chrome.runtime.sendMessage({ type: SESSION_EVENTS.JOIN, code })
 }
 
 export async function leaveSessionRequest(): Promise<{ success?: boolean; error?: string }> {
-	return chrome.runtime.sendMessage({ type: 'LEAVE_SESSION' })
+	return chrome.runtime.sendMessage({ type: SESSION_EVENTS.LEAVE })
 }
