@@ -22,10 +22,9 @@ export default defineManifest({
     'storage',
     'activeTab',
     'tabs',
-    'offscreen',
   ],
   content_scripts: [{
-    js: ['src/content/main.tsx'],
+    js: ['src/content/index.ts'],
     matches: ['<all_urls>'],
   },
   ]
