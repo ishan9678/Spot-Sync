@@ -60,7 +60,7 @@ io.on('connection', (socket) => {
     callback({ success: true });
   });
 
-  socket.on(SESSION_EVENTS.LEAVE, ({ sessionCode }) => {
+  socket.on(SESSION_EVENTS.LEAVE, ({ sessionCode }, callback) => {
     const hostSocketId = sessions[sessionCode];
     if (!hostSocketId) {
       return;
@@ -68,6 +68,8 @@ io.on('connection', (socket) => {
 
     // notify host
     io.to(hostSocketId).emit(SESSION_EVENTS.LEAVE, { message: "User left" });
+
+    callback({ success: true });
   });
 
   socket.on(SESSION_EVENTS.END, ({ sessionCode }) => {

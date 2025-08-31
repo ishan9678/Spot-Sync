@@ -129,11 +129,7 @@ export default function App() {
   }
 
   const joinSession = async (code: string) => {
-    if (!code) {
-      toast.error('Please enter a session code')
-      return
-    }
-  if (!isValidSessionCode(code)) {
+    if (!isValidSessionCode(code)) {
       toast.error('Enter a valid 6-digit code')
       return
     }
@@ -141,16 +137,16 @@ export default function App() {
     setConnectionStatus('connecting')
 
     try {
-  const response = await joinSessionRequest(code)
-      if (response?.success) {
-        setSessionState('joined')
-        setConnectionStatus('connected')
-        toast.success('Joined session successfully!')
-      } else {
-        setConnectionStatus('disconnected')
-        const msg = response?.error || 'Failed to join session'
-        toast.error(msg)
-      }
+    const response = await joinSessionRequest(code)
+        if (response?.success) {
+          setSessionState('joined')
+          setConnectionStatus('connected')
+          toast.success('Joined session successfully!')
+        } else {
+          setConnectionStatus('disconnected')
+          const msg = response?.error || 'Failed to join session'
+          toast.error(msg)
+        }
     } catch (error) {
       console.error('Failed to join session:', error)
       setConnectionStatus('disconnected')
@@ -160,8 +156,7 @@ export default function App() {
 
   const leaveSession = async () => {
     try {
-      // Send message to background script which forwards to offscreen document
-  await leaveSessionRequest()
+      await leaveSessionRequest()
     } catch (error) {
       console.error('Error leaving session:', error);
     }
