@@ -159,11 +159,24 @@ export default function App() {
 
   useEffect(() => {
     const lastMismatchRef = { key: '', ts: 0 }
-    const messageListener = (message: any) => {
-      if (message?.type === 'SONG_INFO' && message.payload) {
-        setSongInfo(message.payload)
+    
+    const messageListener = (message: any) => {      
+      if (message?.type === 'SONG_INFO' && message.payload) {        
+        // If hosting, display this song info
+        if (sessionState === 'hosting') {
+          setSongInfo(message.payload)
+        }
         return
       }
+      
+      if (message?.type === 'SONG_INFO_UPDATED' && message.payload) {        
+        // If joined, display the host's song info
+        if (sessionState === 'joined') {
+          setSongInfo(message.payload)
+        }
+        return
+      }
+      
       if (message?.type === 'SYNC_MISMATCH' && message.hostSong) {
         const key = `${message.hostSong.title}—${message.hostSong.artist}`
         const now = Date.now()
@@ -178,9 +191,12 @@ export default function App() {
               <div style={{ marginTop: 6, fontSize: 12 }}>Switch to this track to sync.</div>
             </div>
           ), { id: 'sync-mismatch', duration: 4000 })
+        } else {
+          console.log('[POPUP] Skipping duplicate sync mismatch toast for:', key)
         }
         return
       }
+      
       if (message.type === 'PEER_COUNT_UPDATE') {
         setConnectedPeers(message.count)
       } else if (message.type === 'CONNECTION_LOST') {
@@ -212,7 +228,7 @@ export default function App() {
 
     chrome.runtime.onMessage.addListener(messageListener)
     return () => chrome.runtime.onMessage.removeListener(messageListener)
-  }, [])
+  }, [sessionState])
 
   return (
     <div className="app">

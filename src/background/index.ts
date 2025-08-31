@@ -137,8 +137,21 @@ function initSocket() {
   })
 
   socket.on(SESSION_EVENTS.UPDATE, (data) => {
-    console.log('[BG] Song info updated:', data)
-    notifyPopup('SONG_INFO_UPDATED', data)
+        notifyPopup('SONG_INFO_UPDATED', { payload: data.data })
+        
+        // Forward host song to content script for sync checking (only if joined)
+        if (sessionState === 'joined') {
+          chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+            if (tabs[0]?.id) {
+              chrome.tabs.sendMessage(tabs[0].id, {
+                type: 'HOST_SONG_UPDATE',
+                song: data.data
+              }).catch(() => {
+                // Content script may not be ready or on wrong page
+              })
+            }
+          })
+        }
   })
 }
 
@@ -233,13 +246,22 @@ chrome.runtime.onMessage.addListener((msg, _, sendResponse) => {
       break
     }
 
-    case 'SONG_INFO': {
-      if( sessionState === "hosting"){
+    case 'SONG_INFO': {      
+      // Only forward song info to popup if we're hosting
+      // Joined clients should only see host's song info from server
+      if (sessionState === "hosting") {
         socket?.emit(SESSION_EVENTS.UPDATE, { 
-            sessionCode: currentSessionCode,
-            data: msg.song
+          sessionCode: currentSessionCode,
+          data: msg.song
         })
+        notifyPopup('SONG_INFO', { payload: msg.song })
       }
+      break
+    }
+
+    case 'SYNC_MISMATCH': {
+      console.log("[BG] Forwarding sync mismatch from content script")
+      notifyPopup('SYNC_MISMATCH', { hostSong: msg.hostSong, currentSong: msg.currentSong })
       break
     }
 
