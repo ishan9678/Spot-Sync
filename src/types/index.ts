@@ -7,3 +7,13 @@ export type SongInfo = {
   positionMs?: number
   durationMs?: number
 }
+
+export type SessionState = 'idle' | 'hosting' | 'joined'
+export type ConnectionStatus = 'connected' | 'disconnected' | 'connecting'
+
+export type SavedState = {
+	sessionState?: SessionState
+	sessionCode?: string
+	connectionStatus?: ConnectionStatus
+	connectedPeers?: number
+}

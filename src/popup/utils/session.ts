@@ -1,12 +1,4 @@
-export type SessionState = 'idle' | 'hosting' | 'joined'
-export type ConnectionStatus = 'connected' | 'disconnected' | 'connecting'
-
-export type SavedState = {
-	sessionState?: SessionState
-	sessionCode?: string
-	connectionStatus?: ConnectionStatus
-	connectedPeers?: number
-}
+import type { SessionState, ConnectionStatus, SavedState } from '@/types'
 
 export function isValidSessionCode(code: string): boolean {
 	return /^\d{6}$/.test(code)

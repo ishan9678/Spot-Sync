@@ -8,8 +8,6 @@ import JoinedView from './components/JoinedView'
 import NowPlaying from './components/NowPlaying'
 import './App.css'
 import {
-  type SessionState,
-  type ConnectionStatus,
   getSavedState,
   saveStateSnapshot,
   getStatus,
@@ -19,14 +17,13 @@ import {
   isValidSessionCode
 } from './utils/session'
 import { getActiveTabUrl, isSpotifyUrl } from './utils/tabs'
-
-// Types moved to utils/session
+import type { SessionState, ConnectionStatus } from '@/types'
 
 export default function App() {
   const [sessionState, setSessionState] = useState<SessionState>('idle')
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('disconnected')
   const [sessionCode, setSessionCode] = useState<string>('')
-  // joinCode moved into IdleControls component state
+
   const [connectedPeers, setConnectedPeers] = useState<number>(0)
   const [onSpotify, setOnSpotify] = useState<boolean>(false)
   const [songInfo, setSongInfo] = useState<{ title: string; artist: string; position: string; duration: string } | null>(null)
@@ -112,15 +109,13 @@ export default function App() {
     
     setConnectionStatus('connecting')
     
-    try {
-      // Send message to background script which forwards to offscreen document
-  const response = await startHostSession()
-      
-      if (response.error) {
-        setConnectionStatus('disconnected')
-        toast.error(response.error)
-      } else if (response.sessionId) {
-        setSessionCode(response.sessionId)
+  try {
+    const response = await startHostSession()
+    if (response.error) {
+      setConnectionStatus('disconnected')
+      toast.error(response.error)
+    } else if (response.sessionId) {
+      setSessionCode(response.sessionId)
         setSessionState('hosting')
         setConnectionStatus('connected')
         toast.success('Session started!')
