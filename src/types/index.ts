@@ -6,6 +6,7 @@ export type SongInfo = {
   isPlaying?: boolean
   positionMs?: number
   durationMs?: number
+  coverUrl?: string
 }
 
 export type SessionState = 'idle' | 'hosting' | 'joined'

@@ -87,7 +87,14 @@ export default function NowPlaying({ song }: Props) {
       aria-label="Now Playing"
     >
       <div style={{ fontSize: 12, color: '#9aa0a6', letterSpacing: 0.4 }}>Now Playing</div>
-  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        {song.coverUrl && (
+          <img
+            src={song.coverUrl}
+            alt={song.title ? `${song.title} cover` : 'Cover art'}
+            style={{ width: 44, height: 44, borderRadius: 6, objectFit: 'cover', flex: '0 0 auto' }}
+          />
+        )}
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={song.title}>
             {song.title}

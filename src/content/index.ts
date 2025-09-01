@@ -10,12 +10,13 @@ export function getSongInfo(): SongInfo {
   const artist = document.querySelector('[data-testid="context-item-info-artist"]')?.textContent || ""
   const position = document.querySelector('[data-testid="playback-position"]')?.textContent || ""
   const duration = document.querySelector('[data-testid="playback-duration"]')?.textContent || ""
+  const coverUrl = (document.querySelector('[data-testid="cover-art-image"]') as HTMLImageElement | null)?.src || undefined
   const playBtn = document.querySelector('[data-testid="control-button-playpause"]') as HTMLButtonElement | null
   const isPlaying = playBtn?.getAttribute("aria-label") === "Pause"
   const range = document.querySelector('[data-testid="playback-progressbar"] input[type="range"]') as HTMLInputElement | null
   const positionMs = range ? Number(range.value) || 0 : 0
   const durationMs = range ? Number(range.max) || 0 : 0
-  return { title, artist, position, duration, isPlaying, positionMs, durationMs }
+  return { title, artist, position, duration, isPlaying, positionMs, durationMs, coverUrl }
 }
 
 function play() {
@@ -100,9 +101,9 @@ function checkSyncMismatch() {
       const hostPos = hostSongInfo.positionMs || 0
       const currentPos = currentSong.positionMs || 0
       const timeDiff = Math.abs(hostPos - currentPos)
-      
-      // If difference is more than 3 seconds, sync position
-      if (timeDiff > 3000) {
+
+      // If difference is more than 5  seconds, sync position
+      if (timeDiff > 5000) {
         console.log(`[CONTENT] Position out of sync by ${timeDiff}ms, seeking to ${hostPos}ms`)
         seekTo(hostPos)
       }

@@ -17,7 +17,7 @@ import {
   isValidSessionCode
 } from './utils/session'
 import { getActiveTabUrl, isSpotifyUrl } from './utils/tabs'
-import type { SessionState, ConnectionStatus } from '@/types'
+import type { SessionState, ConnectionStatus, SongInfo } from '@/types'
 
 export default function App() {
   const [sessionState, setSessionState] = useState<SessionState>('idle')
@@ -26,7 +26,7 @@ export default function App() {
 
   const [connectedPeers, setConnectedPeers] = useState<number>(0)
   const [onSpotify, setOnSpotify] = useState<boolean>(false)
-  const [songInfo, setSongInfo] = useState<{ title: string; artist: string; position: string; duration: string } | null>(null)
+  const [songInfo, setSongInfo] = useState<SongInfo | null>(null)
 
   // Load current state from background script when popup opens
   useEffect(() => {
