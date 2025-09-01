@@ -9,5 +9,6 @@ export const SESSION_EVENTS = {
   LEAVE: "leave_session",
   CLIENT_JOINED: "client_joined",
   UPDATE: "update_session",
+  CONTROL: "control_session",
   END: "end_session",
 };

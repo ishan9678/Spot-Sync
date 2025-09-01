@@ -71,6 +71,16 @@ io.on("connection", (socket) => {
     io.to(sessionCode).emit(SESSION_EVENTS.UPDATE, { data })
   })
 
+  // --- CONTROL (forward client control commands to host only) ---
+  socket.on(SESSION_EVENTS.CONTROL, ({ sessionCode, command, payload }, callback) => {
+    const hostId = getHost(sessionCode)
+    if (!hostId) return callback?.({ success: false, error: 'Invalid session' })
+
+    // Forward to host only
+    io.to(hostId).emit(SESSION_EVENTS.CONTROL, { command, payload })
+    callback?.({ success: true })
+  })
+
   // --- LEAVE ---
   socket.on(SESSION_EVENTS.LEAVE, ({ sessionCode }, callback) => {
     socket.leave(sessionCode)

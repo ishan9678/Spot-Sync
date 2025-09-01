@@ -153,6 +153,26 @@ function initSocket() {
           })
         }
   })
+
+  // When host, receive CONTROL and forward to content script for execution
+  socket.on(SESSION_EVENTS.CONTROL, ({ command, payload }) => {
+    if (sessionState !== 'hosting') return
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      if (tabs[0]?.id) {
+        const tabId = tabs[0].id
+        switch (command) {
+          case 'PLAY':
+          case 'PAUSE':
+          case 'TOGGLE':
+            chrome.tabs.sendMessage(tabId, { type: command }).catch(() => {})
+            break
+          case 'SEEK':
+            chrome.tabs.sendMessage(tabId, { type: 'SEEK', ms: payload?.ms }).catch(() => {})
+            break
+        }
+      }
+    })
+  })
 }
 
 function cleanupSocket() {
@@ -262,6 +282,32 @@ chrome.runtime.onMessage.addListener((msg, _, sendResponse) => {
     case 'SYNC_MISMATCH': {
       console.log("[BG] Forwarding sync mismatch from content script")
       notifyPopup('SYNC_MISMATCH', { hostSong: msg.hostSong, currentSong: msg.currentSong })
+      break
+    }
+
+    // Client control: when joined, send control to host via server; when hosting, execute locally
+    case 'CONTROL': {
+      const { command, payload } = msg
+      if (sessionState === 'joined') {
+  socket?.emit(SESSION_EVENTS.CONTROL, { sessionCode: currentSessionCode, command, payload }, () => {})
+      } else if (sessionState === 'hosting') {
+        // Execute locally (route to content script)
+        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+          if (tabs[0]?.id) {
+            const tabId = tabs[0].id
+            switch (command) {
+              case 'PLAY':
+              case 'PAUSE':
+              case 'TOGGLE':
+                chrome.tabs.sendMessage(tabId, { type: command }).catch(() => {})
+                break
+              case 'SEEK':
+                chrome.tabs.sendMessage(tabId, { type: 'SEEK', ms: payload?.ms }).catch(() => {})
+                break
+            }
+          }
+        })
+      }
       break
     }
 

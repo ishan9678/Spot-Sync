@@ -1,6 +1,5 @@
 // no explicit React import needed with modern TSX settings
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { getActiveTab, isSpotifyUrl } from '../utils/tabs'
 import { Play as PlayIcon, Pause as PauseIcon } from 'lucide-react'
 import { timeToMs } from '../utils/time'
 import { SongInfo } from '@/types'
@@ -52,23 +51,16 @@ export default function NowPlaying({ song }: Props) {
 
   if (!song || !song.title) return null
 
-  const send = async (type: 'PLAY' | 'PAUSE' | 'TOGGLE' | 'SEEK', payload?: any) => {
-    try {
-      const tab = await getActiveTab()
-      if (tab?.id && isSpotifyUrl(tab.url)) {
-        await chrome.tabs.sendMessage(tab.id, { type, ...(payload ?? {}) })
-        return
-      }
-    } catch {
-      // fallback to runtime message
-    }
-    await chrome.runtime.sendMessage({ type, ...(payload ?? {}) })
+  const sendControl = async (command: 'PLAY' | 'PAUSE' | 'TOGGLE' | 'SEEK', payload?: any) => {
+    // Prefer background routing so joined clients can control host
+    await chrome.runtime.sendMessage({ type: 'CONTROL', command, payload })
   }
+
 
   const onSeekCommit = (value: number) => {
     const clamped = Math.max(0, Math.min(value, durationMs || 0))
     setSliderMs(clamped)
-  void send('SEEK', { ms: clamped })
+    void sendControl('SEEK', { ms: clamped })
   }
 
   const disabled = durationMs <= 0
@@ -159,7 +151,7 @@ export default function NowPlaying({ song }: Props) {
           -10s
         </button>
         <button
-          onClick={() => void send('TOGGLE')}
+          onClick={() => void sendControl('TOGGLE')}
           title={isPlaying ? 'Pause' : 'Play'}
           aria-label={isPlaying ? 'Pause' : 'Play'}
           style={{
