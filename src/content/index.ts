@@ -136,12 +136,51 @@ chrome.runtime.onMessage.addListener((msg) => {
 })
 
 // Periodically send current song info and check sync
-setInterval(() => {
-  const song = getSongInfo()
-  if (song.title) {
-    chrome.runtime.sendMessage({ type: "SONG_INFO", song: song })
-    
-    // Check sync if we have host song info
-    checkSyncMismatch()
+let syncIntervalId: number | null = null
+
+function startSyncLoop() {
+  if (syncIntervalId !== null) return
+  syncIntervalId = window.setInterval(() => {
+    const song = getSongInfo()
+    if (song.title) {
+      chrome.runtime.sendMessage({ type: "SONG_INFO", song })
+      // Check sync if we have host song info
+      checkSyncMismatch()
+    }
+  }, 1000)
+}
+
+function stopSyncLoop() {
+  if (syncIntervalId !== null) {
+    clearInterval(syncIntervalId)
+    syncIntervalId = null
   }
-}, 1000)
+}
+
+function updateSyncLoopBySessionState(state?: string) {
+  if (state === 'hosting' || state === 'joined') {
+    startSyncLoop()
+  } else {
+    stopSyncLoop()
+  }
+}
+
+// Initialize loop based on current session state
+try {
+  chrome.storage.local.get(['sessionState'], (res) => {
+    updateSyncLoopBySessionState(res?.sessionState)
+  })
+} catch (_) {
+  // storage may be unavailable in some contexts; fail closed (no loop)
+}
+
+// React to session state changes
+try {
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === 'local' && changes.sessionState) {
+      updateSyncLoopBySessionState(changes.sessionState.newValue)
+    }
+  })
+} catch (_) {
+  // ignore
+}
