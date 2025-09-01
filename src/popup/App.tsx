@@ -6,6 +6,7 @@ import IdleControls from './components/IdleControls'
 import HostView from './components/HostView'
 import JoinedView from './components/JoinedView'
 import NowPlaying from './components/NowPlaying'
+import NamePrompt from './components/NamePrompt'
 import './App.css'
 import {
   getSavedState,
@@ -14,7 +15,9 @@ import {
   joinSessionRequest,
   leaveSessionRequest,
   endSessionRequest,
-  isValidSessionCode
+  isValidSessionCode,
+  setDisplayName,
+  getDisplayName,
 } from './utils/session'
 import { getActiveTabUrl, isSpotifyUrl } from './utils/tabs'
 import type { SessionState, ConnectionStatus, SongInfo } from '@/types'
@@ -27,30 +30,36 @@ export default function App() {
   const [connectedPeers, setConnectedPeers] = useState<number>(0)
   const [onSpotify, setOnSpotify] = useState<boolean>(false)
   const [songInfo, setSongInfo] = useState<SongInfo | null>(null)
+  const [_, setName] = useState<string>('')
+  const [needsName, setNeedsName] = useState<boolean>(false)
+  const [hostName, setHostName] = useState<string>('')
+  const [lastJoinedName, setLastJoinedName] = useState<string>('')
 
   // Load current state from background script when popup opens
   useEffect(() => {
-    const loadCurrentState = async () => {
+  const loadCurrentState = async () => {
       try {
         const status = await getStatus()
-        if (status) {
+  if (status) {
           setSessionState(status.sessionState || 'idle')
           setSessionCode(status.sessionCode || '')
           setConnectionStatus(status.connected ? 'connected' : 'disconnected')
           setConnectedPeers(status.peerCount || 0)
+          if ((status as any).lastJoinedName) setLastJoinedName((status as any).lastJoinedName)
         }
       } catch (error) {
         console.error('Error loading current state:', error)
         // Fallback to storage if background script fails
-        const result = await getSavedState()
+  const result = await getSavedState()
         setSessionState(result.sessionState)
         setSessionCode(result.sessionCode)
         setConnectionStatus(result.connectionStatus)
         setConnectedPeers(result.connectedPeers)
+        if ((result as any).lastJoinedName) setLastJoinedName((result as any).lastJoinedName)
       }
     }
 
-    loadCurrentState()
+  loadCurrentState()
   }, [])
 
   // Check active tab once to indicate if user is on Spotify
@@ -65,17 +74,30 @@ export default function App() {
     })()
   }, [])
 
+  // Ask for name on first open and store it via UI component
+  useEffect(() => {
+    (async () => {
+  const existing = await getDisplayName()
+      if (existing) {
+        setName(existing)
+        setNeedsName(false)
+      } else {
+        setNeedsName(true)
+      }
+    })()
+  }, [])
+
   const startSession = async () => {
     if (connectionStatus === 'connecting') return
     
     setConnectionStatus('connecting')
     
   try {
-    const response = await startHostSession()
+  const response = await startHostSession()
     if (response.error) {
       setConnectionStatus('disconnected')
       toast.error(response.error)
-    } else if (response.sessionCode) {
+  } else if (response.sessionCode) {
       setSessionCode(response.sessionCode)
       setSessionState('hosting')
       setConnectionStatus('connected')
@@ -98,9 +120,10 @@ export default function App() {
     setConnectionStatus('connecting')
 
     try {
-    const response = await joinSessionRequest(code)
+    const response: any = await joinSessionRequest(code)
         if (response?.success) {
           setSessionState('joined')
+          setHostName(response.hostName || '')
           setConnectionStatus('connected')
           toast.success('Joined session successfully!')
         } else {
@@ -205,7 +228,7 @@ export default function App() {
       } else if (message.type === 'CONNECTION_RESTORED') {
         setConnectionStatus('connected')
         toast.success('Connection restored')
-      } else if (message.type === 'SESSION_ENDED') {
+  } else if (message.type === 'SESSION_ENDED') {
         // Session ended by host or due to disconnect
         setSessionState('idle')
         setConnectionStatus('disconnected')
@@ -222,7 +245,9 @@ export default function App() {
           toast.error(reason)
         }
       } else if (message.type === 'CLIENT_JOINED') {
-        toast.success(message.message || 'Someone joined the session')
+        const who = message.name ? `${message.name}` : 'Someone'
+        if (who && who !== 'Someone') setLastJoinedName(who)
+        toast.success(message.message || `${who} joined the session`)
       }
     }
 
@@ -258,6 +283,17 @@ export default function App() {
       </div>
 
       <div className="main-content">
+      {needsName && (
+        <NamePrompt
+          onSubmit={async (name) => {
+            if (!name) return
+            await setDisplayName(name)
+            setName(name)
+            setNeedsName(false)
+            toast.success(`Hi ${name}!`)
+          }}
+        />
+      )}
       <NowPlaying song={songInfo} />
 
         {sessionState === 'idle' && (
@@ -268,18 +304,20 @@ export default function App() {
           />
         )}
 
-        {sessionState === 'hosting' && (
+  {sessionState === 'hosting' && (
           <HostView
             sessionCode={sessionCode}
             connectedPeers={connectedPeers}
             onCopy={copyToClipboard}
             onLeave={endSession}
+            lastJoinedName={lastJoinedName}
           />
         )}
 
-        {sessionState === 'joined' && (
+    {sessionState === 'joined' && (
           <JoinedView
             connectedPeers={connectedPeers}
+      hostName={hostName}
             onLeave={leaveSession}
           />
         )}

@@ -11,12 +11,14 @@ export async function getSavedState(): Promise<Required<SavedState>> {
 		'sessionCode',
 		'connectionStatus',
 		'connectedPeers',
+		'lastJoinedName',
 	])
 	return {
 		sessionState: (result.sessionState as SessionState) ?? 'idle',
 		sessionCode: (result.sessionCode as string) ?? '',
 		connectionStatus: (result.connectionStatus as ConnectionStatus) ?? 'disconnected',
 		connectedPeers: (result.connectedPeers as number) ?? 0,
+		lastJoinedName: (result.lastJoinedName as string) ?? '',
 	}
 }
 
@@ -49,4 +51,13 @@ export async function leaveSessionRequest(): Promise<{ success?: boolean; error?
 
 export async function endSessionRequest(): Promise<{ success?: boolean; error?: string }> {
 	return chrome.runtime.sendMessage({ type: SESSION_EVENTS.END })
+}
+
+export async function setDisplayName(name: string): Promise<void> {
+	await chrome.runtime.sendMessage({ type: 'SET_NAME', name })
+}
+
+export async function getDisplayName(): Promise<string> {
+	const res = await chrome.storage.local.get(['displayName'])
+	return (res.displayName as string) || ''
 }

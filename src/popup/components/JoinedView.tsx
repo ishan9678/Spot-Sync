@@ -2,15 +2,16 @@ import { Users, LogOut } from 'lucide-react'
 
 interface JoinedViewProps {
   connectedPeers: number
+  hostName?: string
   onLeave: () => Promise<void> | void
 }
 
-export function JoinedView({ connectedPeers, onLeave }: JoinedViewProps) {
+export function JoinedView({ connectedPeers, hostName, onLeave }: JoinedViewProps) {
   return (
     <div className="session-active joined">
       <div className="session-info">
         <h3>Session Joined</h3>
-        <p>Connected to host</p>
+  <p>Connected to {hostName ? `${hostName}'s` : 'host'} session</p>
       </div>
 
       <div className="peers-info">

@@ -15,7 +15,8 @@ const io = new Server(server, {
 app.get("/", (_req, res) => res.send("works fine"))
 
 // --- State ---
-const sessions: Record<string, string> = {} // sessionCode -> hostSocketId
+type SessionMeta = { hostSocketId: string; hostName: string }
+const sessions: Record<string, SessionMeta> = {} // sessionCode -> meta
 
 // --- Helpers ---
 function generateCode() {
@@ -23,6 +24,10 @@ function generateCode() {
 }
 
 function getHost(sessionCode: string) {
+  return sessions[sessionCode]?.hostSocketId || null
+}
+
+function getSession(sessionCode: string): SessionMeta | null {
   return sessions[sessionCode] || null
 }
 
@@ -43,9 +48,9 @@ io.on("connection", (socket) => {
   console.log(`Socket connected: ${socket.id}`)
 
   // --- START session ---
-  socket.on(SESSION_EVENTS.START, (_, callback) => {
+  socket.on(SESSION_EVENTS.START, ({ name }: { name?: string } = {}, callback) => {
     const sessionCode = generateCode()
-    sessions[sessionCode] = socket.id
+    sessions[sessionCode] = { hostSocketId: socket.id, hostName: name || 'Host' }
     socket.join(sessionCode)
     updateRoomSize(sessionCode)
     console.log(`Host ${socket.id} started ${sessionCode}`)
@@ -53,16 +58,18 @@ io.on("connection", (socket) => {
   })
 
   // --- JOIN session ---
-  socket.on(SESSION_EVENTS.JOIN, ({ sessionCode }, callback) => {
+  socket.on(SESSION_EVENTS.JOIN, ({ sessionCode, name }: { sessionCode: string; name?: string }, callback) => {
     const hostId = getHost(sessionCode)
     if (!hostId) return callback({ success: false, error: "Invalid code" })
 
     socket.join(sessionCode)
     updateRoomSize(sessionCode)
 
-    io.to(hostId).emit(SESSION_EVENTS.CLIENT_JOINED, { clientId: socket.id })
-    console.log(`Client ${socket.id} joined ${sessionCode}`)
-    callback({ success: true })
+    const hostName = getSession(sessionCode)?.hostName || 'Host'
+    const displayName = name || 'Guest'
+    io.to(hostId).emit(SESSION_EVENTS.CLIENT_JOINED, { clientId: socket.id, name: displayName, message: `${displayName} joined the session` })
+    console.log(`Client ${socket.id} (${displayName}) joined ${sessionCode}`)
+    callback({ success: true, hostName })
   })
 
   // --- UPDATE ---
@@ -101,8 +108,8 @@ io.on("connection", (socket) => {
   // This is for when the host disconnects unintentionally (ie not by clicking end session)
   socket.on("disconnect", () => {
     console.log(`Socket disconnected: ${socket.id}`)
-    for (const [code, hostId] of Object.entries(sessions)) {
-      if (hostId === socket.id) {
+    for (const [code, meta] of Object.entries(sessions)) {
+      if (meta.hostSocketId === socket.id) {
         endSession(code, "Host disconnected")
       } else {
         // peer left, update room size after cleanup

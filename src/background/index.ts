@@ -9,6 +9,9 @@ let currentSessionCode: string = ''
 let sessionState: SessionState = 'idle'
 let connectionStatus: ConnectionStatus = 'disconnected'
 let connectedPeers: number = 0
+let displayName: string = ''
+let hostName: string = ''
+let lastJoinedName: string = ''
 let intentionalDisconnect: boolean = false
 
 // -------------------- Helpers -------------------- //
@@ -20,13 +23,19 @@ async function initializeState() {
       'sessionState',
       'sessionCode',
       'connectionStatus',
-      'connectedPeers'
+      'connectedPeers',
+      'displayName',
+      'hostName',
+      'lastJoinedName'
     ])
 
     sessionState = result.sessionState || 'idle'
     currentSessionCode = result.sessionCode || ''
     connectionStatus = result.connectionStatus || 'disconnected'
     connectedPeers = result.connectedPeers || 0
+  displayName = result.displayName || ''
+  hostName = result.hostName || ''
+  lastJoinedName = result.lastJoinedName || ''
 
     // If we had an active session, try to reconnect
     if (sessionState !== 'idle' && currentSessionCode) {
@@ -44,7 +53,10 @@ async function saveState() {
       sessionState,
       sessionCode: currentSessionCode,
       connectionStatus,
-      connectedPeers
+      connectedPeers,
+      displayName,
+      hostName,
+      lastJoinedName
     })
   } catch (error) {
     console.error('[BG] Failed to save state:', error)
@@ -125,7 +137,11 @@ function initSocket() {
   })
 
   socket.on(SESSION_EVENTS.CLIENT_JOINED, (data) => {
-    console.log('[BG] Client joined:', data.message)
+    console.log('[BG] Client joined:', data)
+    if (data?.name) {
+      lastJoinedName = data.name
+      saveState()
+    }
     notifyPopup('CLIENT_JOINED', data)
   })
 
@@ -194,7 +210,8 @@ chrome.runtime.onMessage.addListener((msg, _, sendResponse) => {
         peerCount: connectedPeers,
         peerId: socket?.id || null,
         sessionCode: currentSessionCode,
-        sessionState
+  sessionState,
+  lastJoinedName
       })
       return false
     }
@@ -202,7 +219,16 @@ chrome.runtime.onMessage.addListener((msg, _, sendResponse) => {
     case SESSION_EVENTS.START: {
       ensureSocketConnecting()
 
-      socket?.emit(SESSION_EVENTS.START, {}, (ack: { sessionCode?: string; error?: string }) => {
+      // load name from storage if not present
+      if (!displayName) {
+        // best-effort sync retrieval
+        chrome.storage.local.get(['displayName']).then((res) => {
+          displayName = res.displayName || ''
+          saveState()
+        })
+      }
+
+      socket?.emit(SESSION_EVENTS.START, { name: displayName }, (ack: { sessionCode?: string; error?: string }) => {
         if (ack.error) {
           setConnectionStatus('disconnected')
           sendResponse({ error: ack.error })
@@ -219,15 +245,24 @@ chrome.runtime.onMessage.addListener((msg, _, sendResponse) => {
     case SESSION_EVENTS.JOIN: {
       ensureSocketConnecting()
 
+      // load name from storage if not present
+      if (!displayName) {
+        chrome.storage.local.get(['displayName']).then((res) => {
+          displayName = res.displayName || ''
+          saveState()
+        })
+      }
+
       socket?.emit(
         SESSION_EVENTS.JOIN,
-        { sessionCode: msg.sessionCode },
-        (ack: { success?: boolean; error?: string }) => {
+        { sessionCode: msg.sessionCode, name: displayName },
+    (ack: { success?: boolean; error?: string; hostName?: string }) => {
           if (ack.success) {
             currentSessionCode = msg.sessionCode
             sessionState = 'joined'
+            hostName = ack.hostName || ''
             setConnectionStatus('connected')
-            sendResponse({ success: true })
+      sendResponse({ success: true, hostName })
           } else {
             setConnectionStatus('disconnected')
             sendResponse({ error: ack.error || 'Failed to join session' })
@@ -264,6 +299,14 @@ chrome.runtime.onMessage.addListener((msg, _, sendResponse) => {
       resetSessionState()
       cleanupSocket()
       break
+    }
+
+    // Save display name from popup
+    case 'SET_NAME': {
+      displayName = (msg.name || '').toString().trim()
+      saveState()
+      sendResponse?.({ success: true })
+      return true
     }
 
     case 'SONG_INFO': {      

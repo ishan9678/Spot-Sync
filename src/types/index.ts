@@ -16,5 +16,6 @@ export type SavedState = {
 	sessionState?: SessionState
 	sessionCode?: string
 	connectionStatus?: ConnectionStatus
-	connectedPeers?: number
+  connectedPeers?: number
+  lastJoinedName?: string
 }

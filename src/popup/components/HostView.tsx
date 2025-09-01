@@ -5,13 +5,14 @@ interface HostViewProps {
   connectedPeers: number
   onCopy: () => Promise<void> | void
   onLeave: () => Promise<void> | void
+  lastJoinedName?: string
 }
 
-export function HostView({ sessionCode, connectedPeers, onCopy, onLeave }: HostViewProps) {
+export function HostView({ sessionCode, connectedPeers, onCopy, onLeave, lastJoinedName }: HostViewProps) {
   return (
     <div className="session-active hosting">
       <div className="session-info">
-        <h3>Hosting Session</h3>
+  <h3>Hosting Session</h3>
         <div className="session-code-container">
           <span className="session-code">{sessionCode}</span>
           <button
@@ -24,9 +25,16 @@ export function HostView({ sessionCode, connectedPeers, onCopy, onLeave }: HostV
         </div>
       </div>
 
-      <div className="peers-info">
+      <div className="peers-info" style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
         <Users size={16} />
-        <span>{connectedPeers} peer{connectedPeers !== 1 ? 's' : ''} connected</span>
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          <span>{connectedPeers} peer{connectedPeers !== 1 ? 's' : ''} connected</span>
+          {lastJoinedName ? (
+            <span style={{ fontSize: 12, color: '#b0b4b9' }}>
+              {lastJoinedName} is connected
+            </span>
+          ) : null}
+        </div>
       </div>
 
       <button
